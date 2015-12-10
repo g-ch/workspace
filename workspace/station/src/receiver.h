@@ -1,3 +1,5 @@
+//*******receiver.h******
+
 #ifndef RECEIVER_H
 #define RECEIVER_H
 
@@ -88,6 +90,7 @@ class MavrosMessage : public QThread
     Q_OBJECT
 public:
     void run();
+
     /*********飞行参数变量**********/
     string mode;
     struct Imu_Data imu_data;

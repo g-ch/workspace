@@ -1,3 +1,5 @@
+//******mainwindow.h*******
+
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
@@ -49,13 +51,12 @@ private slots:
     void camera_Image_Slot();//摄像头图像显示
     void camera_Capture_Show_Slot();//截图显示在scrollarea
 
-    void on_pushButton_clicked();
     void on_pushButton_Open_Video_clicked();
     void on_pushButton_Close_Video_clicked();
     void on_pushButton_Capture_Video_clicked();
 
     void on_spinBox_Num_editingFinished();
-    void on_comboBox_Num_currentIndexChanged(int index);
+    //void on_comboBox_Num_currentIndexChanged(int index);
 
 
     void on_listWidget_itemDoubleClicked(QListWidgetItem *item);//用于预览图片

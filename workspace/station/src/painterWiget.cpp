@@ -1,5 +1,8 @@
+//*******painterWiget.cpp********
+
 #include "painterWiget.h"
 #include "math.h"
+extern int choice;
 
 StatusPainter::StatusPainter()
 {
@@ -27,8 +30,16 @@ painter.setBrush(QBrush(QColor(135,206,250), Qt::SolidPattern));
 painter.drawRect(0,0,painting_area_width,painting_area_height);
 //地面
 painting_Calculate();//计算
-painter.setPen(QPen(QColor(0,238,0)));
-painter.setBrush(QBrush(QColor(0,238,0)));
+if(choice==1)
+{
+    painter.setPen(QPen(QColor(0,238,0)));
+    painter.setBrush(QBrush(QColor(0,238,0)));
+}
+else
+{
+    painter.setPen(QPen(QColor(205,190,112)));
+    painter.setBrush(QBrush(QColor(205,190,112)));
+}
 painter.drawPolygon( ground_points,5);// ground_points更新在mianwindow.cpp中
 //画roll圆弧
 painter.setPen(QPen(Qt::white,2,Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));

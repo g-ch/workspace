@@ -1,12 +1,14 @@
 #include "ros/ros.h"  
 #include "geometry_msgs/PoseStamped.h" 
-#include "/home/chg/catkin_ws/devel/include/mavros/SetPointLocal.h"
+#include <mavros/SetPointLocal.h>
 #include <sstream>  
 #include <math.h>
 
 void init_position();
 void set_position(const mavros::SetPointLocal &setpoint);
 
+bool offboard_ready = false;
+bool setpoints_ready = false;
 geometry_msgs::PoseStamped msg;
 
 int main(int argc, char **argv)  
@@ -20,18 +22,15 @@ int main(int argc, char **argv)
   
   ros::Publisher offboard_pub = nh2.advertise<geometry_msgs::PoseStamped>("offboard/setpoints", 1000);  
   ros::Subscriber setpoint_sub = nh2.subscribe("/offboard/setpoints_local", 500, set_position);
-  
 
-  ros::Rate loop_rate(4);
-  
-  
- 
+  ros::Rate loop_rate(25);
   while (ros::ok())  
   {  
-    
-    ROS_INFO("%f", msg.pose.position.x);
-    offboard_pub.publish(msg);     
-
+    if(setpoints_ready){
+    //if(setpoints_ready){
+        ROS_INFO("%f %f %f", msg.pose.position.x,msg.pose.position.y,msg.pose.position.z);
+        offboard_pub.publish(msg);     
+    }
     ros::spinOnce();  
   
     loop_rate.sleep();  
@@ -65,4 +64,6 @@ void set_position(const mavros::SetPointLocal &setpoint)
   msg.pose.orientation.y = 0.0;
   msg.pose.orientation.z = sin(setpoint.yaw/2);
   msg.pose.orientation.w = cos(setpoint.yaw/2);
+  setpoints_ready = true;
 }
+

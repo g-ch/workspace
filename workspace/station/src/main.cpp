@@ -1,3 +1,5 @@
+//*********main.cpp**********
+
 #include "mainwindow.h"
 #include <QApplication>
 #include "ros/ros.h"

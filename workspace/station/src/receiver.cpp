@@ -1,11 +1,13 @@
+//*******receiver.cpp**********
+
 #include "receiver.h"
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include <math.h>
-#include "/home/chg/catkin_ws/devel/include/mavros/State.h"
-#include "/home/chg/catkin_ws/devel/include/mavros/Mavlink.h"
-#include "/home/chg/catkin_ws/devel/include/mavros/BatteryStatus.h"
-#include "/home/chg/catkin_ws/devel/include/mavros/RadioStatus.h"
+#include "../../../devel/include/mavros/State.h"
+#include "../../../devel/include/mavros/Mavlink.h"
+#include "../../../devel/include/mavros/BatteryStatus.h"
+#include "../../../devel/include/mavros/RadioStatus.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/NavSatFix.h"
 #include "sensor_msgs/Temperature.h"
@@ -13,9 +15,12 @@
 #include "std_msgs/Float64.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3Stamped.h"
+#include "geometry_msgs/Vector3.h"
 #include "geometry_msgs/TwistStamped.h"
-#include "/home/chg/catkin_ws/devel/include/mavros_extras/OpticalFlowRad.h"
+#include "../../../devel/include/mavros_extras/OpticalFlowRad.h"
 #include "ros/time.h"
+#include <mavros_extras/SonarDistance.h>
+#include <mavros_extras/LaserDistance.h>
 
 extern MavrosMessage message;
 
@@ -28,6 +33,9 @@ void chatterCallback_Battery(const mavros::BatteryStatus &msg);
 void chatterCallback_RadioStatus(const mavros::RadioStatus &msg);
 void chatterCallback_GPS_Fix(const sensor_msgs::NavSatFix &msg);
 void chatterCallback_Imu_Temperature(const sensor_msgs::Temperature &msg);
+void chatterCallback_Sonar(const mavros_extras::SonarDistance &msg);
+void chatterCallback_Laser(const mavros_extras::LaserDistance &msg);
+void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg);
 
 void chatterCallback_Mode(const mavros::State &msg)//模式
 {  
@@ -48,12 +56,13 @@ void chatterCallback_Mavlink(const mavros::Mavlink &msg)//mavlink原始信息
         message.global_position.gps.satellites=((msg.payload64[3]>>40)&0xFF);
        // cout<<message.global_position.gps.satellites<<endl;
        }
+    //if(msg.msgid==105)cout<<msg<<endl;
+    if(msg.msgid==212||msg.msgid==213)cout<<msg<<endl;
     message.msg_Send_GPS_Satellites();
-    //if(msg.msgid==32) cout<<msg<<endl;
 }
 void chatterCallback_Imu_Data(const sensor_msgs::Imu &msg)//传感器信息
 {
-    /**待添加**/
+
 }
 void chatterCallback_Imu_Temperature(const sensor_msgs::Temperature &msg)//飞控温度
 {
@@ -67,12 +76,12 @@ void chatterCallback_GlobalPosition_RelAlt(const std_msgs::Float64 &msg)//相对
     message.msg_Send_Rel_Alt();
 }
 
-void chatterCallback_GlobalPosition_GpVel(const geometry_msgs::Vector3Stamped &msg)//速度
+void chatterCallback_GlobalPosition_GpVel(const geometry_msgs::TwistStamped &msg)//速度
 {
     //cout<<"V"<<msg.vector<<endl;
-    message.global_position.vel.x =msg.vector.x;
-    message.global_position.vel.y =msg.vector.y;
-    message.global_position.vel.z =msg.vector.z;
+    message.global_position.vel.x =msg.twist.linear.x;
+    message.global_position.vel.y =msg.twist.linear.y;
+    message.global_position.vel.z =msg.twist.linear.z;
     message.msg_Send_Velocity();
 }
 void chatterCallback_LocalPosition_Local(const geometry_msgs::PoseStamped &msg)//当地信息
@@ -92,9 +101,11 @@ void chatterCallback_LocalPosition_Local(const geometry_msgs::PoseStamped &msg)/
     //cout<<"pitch "<<message.local_position.orientation.pitchd<<endl;
     //cout<<"roll "<<message.local_position.orientation.rolld<<endl;
     //cout<<"yaw "<<message.local_position.orientation.yawd<<endl;
-    message.local_position.speed.x=msg.pose.position.x;
-    message.local_position.speed.y=msg.pose.position.y;
-    message.local_position.speed.z=msg.pose.position.z;
+    //message.local_position.speed.x=msg.pose.position.x;
+    //message.local_position.speed.y=msg.pose.position.y;
+    //message.local_position.speed.z=msg.pose.position.z;
+    message.global_position.rel_altitude=msg.pose.position.z;
+    message.msg_Send_Rel_Alt();
     message.msg_Send_Orientation();
 }
 void chatterCallback_WindEstimation(const geometry_msgs::TwistStamped &msg)//风速信息
@@ -121,7 +132,7 @@ void chatterCallback_RadioStatus(const mavros::RadioStatus &msg)//信号质量
 }
 void chatterCallback_GPS_Fix(const sensor_msgs::NavSatFix &msg)//GPS
 {
-    cout<<msg<<endl;
+    //cout<<msg<<endl;
     message.global_position.gps.status=msg.status.status;
     message.global_position.gps.x=msg.latitude;
     message.global_position.gps.y=msg.longitude;
@@ -133,16 +144,38 @@ void chatterCallback_Optical_Flow(const mavros_extras::OpticalFlowRad &msg)//光
     message.optical_flow.quality=msg.quality;
     message.optical_flow.distance=msg.distance;
     message.optical_flow.temperature=msg.temperature;
-    cout<<msg;
+    //cout<<msg;
     message.msg_Send_Optical_Flow();
 }
 void chatterCallback_Time(const sensor_msgs::TimeReference &msg)//飞行时间
 {
-    /***待改动***/
+    //待改动
     message.time_fromboost=0.0;
     //cout<<"source:"<<msg.source<<endl;
     //cout<<"reference:"<<msg.time_ref<<endl;
     message.msg_Send_Time();
+}
+
+void chatterCallback_Sonar(const mavros_extras::SonarDistance &msg)
+{
+    message.optical_flow.distance=msg.sonar_up/100.0; //changed to sonar msg, clarence, 2015.12.2
+    message.optical_flow.temperature=0;
+    //cout<<msg;
+    message.msg_Send_Optical_Flow();
+}
+
+void chatterCallback_Laser(const mavros_extras::LaserDistance &msg)
+{
+    message.optical_flow.quality=msg.min_distance/100.0;
+    message.msg_Send_Optical_Flow();
+}
+
+void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg)
+{
+    message.local_position.speed.x=msg.x;
+    message.local_position.speed.y=msg.y;
+    message.local_position.speed.z=msg.z;
+    message.msg_Send_Orientation();
 }
 
 void MavrosMessage::run()
@@ -162,6 +195,12 @@ void MavrosMessage::run()
     ros::Subscriber sub11 =n.subscribe("/mavros/px4flow/raw/optical_flow_rad",1000,chatterCallback_Optical_Flow);
     ros::Subscriber sub12 =n.subscribe("/mavros/imu/temperature",100,chatterCallback_Imu_Temperature);
     ros::Subscriber sub13 =n.subscribe("/mavros/time_reference",500,chatterCallback_Time);
+    ros::Subscriber sub14 =n.subscribe("/mavros/sonar_receiver/sonar_receiver",500,chatterCallback_Sonar);
+    ros::Subscriber sub15 =n.subscribe("/mavros/laser_receiver/laser_receiver",500,chatterCallback_Laser);
+    ros::Subscriber sub16 =n.subscribe("/mavros/local_position/local_velocity",500,chatterCallback_local_velocity);
     //循环执行
     ros::spin();
 }
+
+
+

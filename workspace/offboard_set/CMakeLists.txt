@@ -32,3 +32,7 @@ add_dependencies(offboard_velocity beginner_tutorials_generate_messages_cpp)
 add_executable(setpoints_publisher src/setpoints_publisher.cpp)  
 target_link_libraries(setpoints_publisher ${catkin_LIBRARIES})  
 add_dependencies(setpoints_publisher beginner_tutorials_generate_messages_cpp)
+
+add_executable(status_imitate src/status_imitate.cpp)  
+target_link_libraries(status_imitate ${catkin_LIBRARIES})  
+add_dependencies(status_imitate beginner_tutorials_generate_messages_cpp)

@@ -40,9 +40,9 @@ private:
 		mavlink_laser_distance_t laser_msg;
 		mavlink_msg_laser_distance_decode(msg, &laser_msg);//decode 
                 
-                //auto header = uas->synchronized_header(frame_id,clarence_msg.mavros_a);//add  header,XXXX
-
+               
                 auto laser_mav_msg = boost::make_shared<mavros_extras::LaserDistance>();//define a msg the same type as  mavros_extras::ClarenceNewMavros
+                laser_mav_msg->header.stamp = ros::Time::now();
 
                 laser_mav_msg->min_distance = laser_msg.min_distance; 
                 laser_mav_msg->angle = laser_msg.angle; 

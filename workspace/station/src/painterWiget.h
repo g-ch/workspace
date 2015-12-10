@@ -1,3 +1,5 @@
+//*******paintWiget.h*******
+
 #ifndef PAINTWIGET_H
 #define PAINTWIGET_H
 

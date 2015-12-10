@@ -1,3 +1,5 @@
+//********mianwindow.cpp*********
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "receiver.h"
@@ -15,7 +17,7 @@ extern Camera camera_video;
 QLabel*velocity_h_label;//水平速度显示label
 QLabel*velocity_z_label;//竖直速度显示label
 
-int choice=1;
+int choice=0;//选择显示的图片
 int angle=0;
 int battery_status=-1;
 int battery_status_last=0;
@@ -77,7 +79,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //pitch、roll、yaw绘图仪表初始化
     StatusPainter *painter = new StatusPainter();
     ui->tabWidget_PaintArea->addTab(painter,"仪表显示");//添加新的画图区widget new StatusPainter(QColor(141,238,238))
-    //ui->tabWidget_PaintArea->removeTab(0);
+    //if(choice==0)ui->tabWidget_PaintArea->removeTab(0);
     ui->tabWidget_PaintArea->setCurrentIndex(1);//显示第二页
     get_Painter_Address(painter);
 
@@ -139,7 +141,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->label_Radio_Strength_2->setFrameStyle(1);
     ui->label_Radio_Strength_3->setFrameStyle(1);
 
-    ui->label_Camera->setFrameStyle(0);
+    if(choice==1)ui->label_Camera->setFrameStyle(0);
+    else ui->label_Camera->setFrameStyle(1);
 
     //ui->label_Mode->setFrameStyle(2);
 
@@ -194,12 +197,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->checkBox_Ruler->setChecked(true);//初始显示标尺
 
     //编号初值设定
-    ui->comboBox_Num->setCurrentIndex(0);
+    //ui->comboBox_Num->setCurrentIndex(0);
     ui->spinBox_Num->setValue(1);
     if(choice==1)ui->label_Yepian->setText("叶片");
 
     //测试按钮。。
-    ui->pushButton_Test->setEnabled(false);
+    //ui->pushButton_Test->setEnabled(false);
 }
 
 
@@ -310,10 +313,10 @@ void MainWindow::radio_Status_Slot()
 {
     ui->lineEdit_Radio->setText(QString::number(message.radio_rssi));
     //画信号图
-    if(message.radio_rssi>-40)radio_status=3;
-    else if(message.radio_rssi>-60)radio_status=2;
-    else if(message.radio_rssi>-90)radio_status=1;
-    else if(message.radio_rssi>-120)radio_status=0;
+    if(message.radio_rssi>-60)radio_status=3;
+    else if(message.radio_rssi>-80)radio_status=2;
+    else if(message.radio_rssi>-110)radio_status=1;
+    else if(message.radio_rssi>-150)radio_status=0;
     else radio_status=-1;
     if(radio_status!=radio_status_last)
     {
@@ -520,7 +523,7 @@ void MainWindow::local_Position_Slot()
     velocity_z_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
 
     //判断是否起飞
-    if(fabs(message.local_position.position.z)>0.1&&(!bool_flying))
+    if(fabs(message.local_position.position.z)>2.0&&(!bool_flying))
         bool_flying=true;
     flying_status_counter+=1;
     if(flying_status_counter==65535)flying_status_counter=0;
@@ -674,17 +677,18 @@ void MainWindow::on_pushButton_Preview_clicked()
     }
 }
 
-void MainWindow::on_spinBox_Num_editingFinished()//编号写入
+void MainWindow::on_spinBox_Num_editingFinished()//编号写入,
 {
-    sprintf(serial_number,"No%d-%d-H-",ui->spinBox_Num->value(),(ui->comboBox_Num->currentIndex()+1));
+    sprintf(serial_number,"No%d-H-",ui->spinBox_Num->value());
+    //sprintf(serial_number,"No%d-%d-H-",ui->spinBox_Num->value(),(ui->comboBox_Num->currentIndex()+1));
     serial_num= serial_number;
 }
 
-void MainWindow::on_comboBox_Num_currentIndexChanged(int index)//编号写入
+/*void MainWindow::on_comboBox_Num_currentIndexChanged(int index)//编号写入，无comboBox时注释掉了
 {
     sprintf(serial_number,"No%d-%d-H-",ui->spinBox_Num->value(),(ui->comboBox_Num->currentIndex()+1));
     serial_num= serial_number;
-}
+}*/
 
 void MainWindow::on_pushButton_Image_Recovery_clicked()
 {
@@ -812,40 +816,6 @@ void MainWindow::on_pushButton_Reset_FlyingTime_clicked()
     bool_flying=false;
 }
 
-/**********试验用槽**********/
-void MainWindow::on_pushButton_clicked()
-{
-
-    QPainter painter;
-
-    QImage image(":/icon/Icons/1-150.png");//定义图片，并在图片上绘图方便显示
-    painter.begin(&image);
-
-    painter.translate(75,75);
-    painter.rotate(angle);
-
-    painter.setPen(QPen(Qt::white,1));
-    painter.setBrush(QBrush(Qt::white));
-    QPointF points[4];
-    points[0]=QPointF(0.0,-20.0);
-    points[1]=QPointF(20.0,-40.0);
-    points[2]=QPointF(0.0,40.0);
-    points[3]=QPointF(-20.0,-40.0);
-    painter.drawPolygon(points,4);
-
-    painter.setPen(QPen(Qt::red,1));
-    painter.setBrush(QBrush(Qt::red));
-    QPointF points2[3];
-    points2[0]=QPointF(0.0,40.0);
-    points2[1]=QPointF(5.0,20.0);
-    points2[2]=QPointF(-5.0,20.0);
-    painter.drawPolygon(points2,3);
-
-    painter.end();
-    velocity_h_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
-
-    angle+=10;
-}
 
 
 

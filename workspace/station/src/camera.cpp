@@ -1,3 +1,5 @@
+//***********camera.cpp***********
+
 #include "camera.h"
 #include "stdio.h"
 #include <string>
@@ -8,6 +10,7 @@ using namespace std;
 
 extern string serial_num;
 extern MavrosMessage message;
+
 
 Camera::Camera()
 {

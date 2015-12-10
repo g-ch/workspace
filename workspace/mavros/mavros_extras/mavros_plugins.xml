@@ -36,6 +36,10 @@
 		<description>Writtren by Clarence Chan for laser value</description>
 	</class>
 
+	<class name="laser_distance" type="mavplugin::LaserDistancePlugin" base_class_type="mavplugin::MavRosPlugin">
+		<description>Writtren by Clarence Chan for laser value</description>
+	</class>
+
 
 
 </library>

@@ -86,6 +86,7 @@ add_message_files(
   CommandCode.msg
   ParamValue.msg
   SetPointLocal.msg
+  Vector3.msg
 )
 
 ## Generate services in the 'srv' folder
