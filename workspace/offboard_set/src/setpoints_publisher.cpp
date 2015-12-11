@@ -5,6 +5,8 @@
 #include <mavros/State.h>
 #include "sensor_msgs/Imu.h"
 #include <geometry_msgs/Vector3.h>
+#include <mavros_extras/FieldSize.h>
+#include <mavros_extras/FieldSizeConfirm.h>
 #include <Eigen/Dense>
 #include <sstream>
 #include <math.h>  
@@ -19,6 +21,7 @@ void chatterCallback_local_position(const geometry_msgs::PoseStamped &msg);
 void chatterCallback_imu_data(const sensor_msgs::Imu &msg);
 void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg);
 void chatterCallback_Mode(const mavros::State &msg);
+void chatterCallback_field_size(const mavros_extras::FieldSize &msg);
 
 void set_new_point(float x, float y, float z, float yaw, float t);
 bool near_bool(float x, float y);
@@ -35,6 +38,7 @@ float a_optimal_calculate(int num, float alfa, float beta, float gamma, float t)
 mavros::SetPointLocal setpoint;
 mavros::Vector3 acceleration_vector;
 mavros::Vector3 velocity_vector;
+mavros_extras::FieldSizeConfirm field_size_confirm_msg;
 
 //paras for strategy without trajectory generation
 bool ready_for_next = false;
@@ -44,6 +48,7 @@ bool p_received = false;
 bool v_received = false;
 bool a_received = false;
 bool offboard_ready = false;
+bool field_size_received = false;
 
 MatrixXd S0_matrix(3,3);//(p,v,a)
 MatrixXd St_matrix(3,3);//(p,v,a)
@@ -51,6 +56,8 @@ MatrixXd Paras_matrix(3,3);//(alfa,beta,gamma)
 MatrixXd St_optimal_matrix(3,3);//(p,v,a)
 MatrixXd j_optimal_matrix(1,3);//(jx,jy,jz)
 MatrixXd init_p_matrix(1,3);
+MatrixXd field_size_matrix(1,4);//(length, width, height, times)
+
 double yaw = 0.0; //hudu
 double init_yaw = 0.0;
 
@@ -64,41 +71,64 @@ int main(int argc, char **argv)
                0.0,0.0,0.0,
                0.0,0.0,0.0;
 
+    field_size_confirm_msg.length = 0.0;
+    field_size_confirm_msg.width = 0.0;
+    field_size_confirm_msg.height = 0.0;
+    field_size_confirm_msg.times = 0;
+    field_size_confirm_msg.confirm = 0;
+
     ros::NodeHandle nh;  
    
     ros::Subscriber localposition_sub = nh.subscribe("/mavros/local_position/local", 500,chatterCallback_local_position);
-    ros::Subscriber imu_sub = nh.subscribe("/mavros/imu/data", 1000,chatterCallback_imu_data);
+    ros::Subscriber imu_sub = nh.subscribe("/mavros/imu/data", 500,chatterCallback_imu_data);
     ros::Subscriber velocity_sub = nh.subscribe("/mavros/local_position/local_velocity", 1000,chatterCallback_local_velocity);
     ros::Subscriber mode_sub = nh.subscribe("/mavros/state", 100,chatterCallback_Mode);
+    ros::Subscriber field_sub = nh.subscribe("/mavros/field_size_receiver/field_size_receiver", 100,chatterCallback_field_size);
+    ros::Publisher field_size_confirm_pub = nh.advertise<mavros_extras::FieldSizeConfirm>("field_size_confirm", 100);
     //imitate data
     //ros::Subscriber localposition_sub = nh.subscribe("/offboard/position_imitate", 500,chatterCallback_local_position);
     //ros::Subscriber imu_sub = nh.subscribe("/offboard/acceleration_imitate", 500,chatterCallback_imu_data);
     //ros::Subscriber velocity_sub = nh.subscribe("/offboard/velocity_imitate", 500,chatterCallback_local_velocity);
     //ros::Subscriber mode_sub = nh.subscribe("/offboard/mode_imitate", 100,chatterCallback_Mode);
     
-    ros::Rate wait_rate(10);
+    ros::Rate wait_rate(4);
 
-    bool set_init_p = false;
+    //wait for field points
+    while(ros::ok() && !field_size_received)
+    {  
+        field_size_confirm_pub.publish(field_size_confirm_msg);
+        ros::spinOnce();  
+        wait_rate.sleep();
+    }
+    ROS_INFO("Field Size Received!");
+    //wait for offboard mode
     while(ros::ok())
     {
     	if(p_received && v_received && a_received)
     	{
     		if(offboard_ready) break;
-    		if(!set_init_p){
-    			init_p_matrix(0,0) = St_matrix(0,0);
-    			init_p_matrix(0,1) = St_matrix(1,0);
-    			init_p_matrix(0,2) = St_matrix(2,0);
-                init_yaw = yaw;
-    			set_init_p = true;
-    		}
-    		else set_new_point(init_p_matrix(0,0),init_p_matrix(0,1),init_p_matrix(0,2), init_yaw, 0.0);             
+    		set_new_point(St_matrix(0,0),St_matrix(1,0),St_matrix(2,0),yaw, 0.0);             
     	}
+
+        field_size_confirm_msg.length = field_size_matrix(0,0);
+        field_size_confirm_msg.width = field_size_matrix(0,1);
+        field_size_confirm_msg.height = field_size_matrix(0,2);
+        field_size_confirm_msg.times = (int)field_size_matrix(0,3);
+        field_size_confirm_msg.confirm = 1;
+        field_size_confirm_pub.publish(field_size_confirm_msg);
+
     	ros::spinOnce();  
     	wait_rate.sleep();
     }
-    ROS_INFO("offboard ready!");
+    ROS_INFO("Offboard Ready!");
 
-    field_2_setpoint(10.0, 3.0, 6.0, 6, init_yaw);
+    init_p_matrix(0,0) = St_matrix(0,0);
+    init_p_matrix(0,1) = St_matrix(1,0);
+    init_p_matrix(0,2) = St_matrix(2,0);
+    init_yaw = yaw;
+    
+    ROS_INFO("Initial Point Set, Auto Flying!");
+    field_2_setpoint(field_size_matrix(0,0), field_size_matrix(0,1), field_size_matrix(0,2), (int)field_size_matrix(0,3), init_yaw);
 
     //trajectory_generation(5.0, init_p_matrix(0,0)+10.0, init_p_matrix(0,1)+0.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     //ROS_INFO("NEXT POINT");
@@ -147,7 +177,7 @@ void set_new_point(float x, float y, float z, float yaw, float t) //t is the tim
 
 	while(ros::ok()){
     	setpoints_pub.publish(setpoint);
-        ROS_INFO("%f %f %f %d", setpoint.x,setpoint.y,setpoint.z,rest_counter);
+        ROS_INFO("%f %f %f %f %d", setpoint.x,setpoint.y,setpoint.z,setpoint.yaw,rest_counter);
 
     	if(ready_for_next) rest_counter+=1;
 
@@ -249,9 +279,10 @@ void chatterCallback_local_position(const geometry_msgs::PoseStamped &msg)
     //message.local_position.orientation.pitch = (asin(2*q0*q2-2*q1*q3 ))*57.3;
     //message.local_position.orientation.roll  = (atan2(2*q2*q3 + 2*q0*q1, 1-2*q1*q1-2*q2*q2))*57.3;
     yaw = (-atan2(2*q1*q2 - 2*q0*q3, -2*q1*q1 - 2*q3*q3 + 1))+Pi;//North:0, south:Pi, East:Pi/2, West: Pi*3/2
-
+    
+    if(!p_received) ROS_INFO("P ready!");
     p_received = true;
-    ROS_INFO("P ready!");
+
 }
 
 void chatterCallback_imu_data(const sensor_msgs::Imu &msg)
@@ -262,8 +293,8 @@ void chatterCallback_imu_data(const sensor_msgs::Imu &msg)
 	St_matrix(0,2) = 0.0;
 	St_matrix(1,2) = 0.0;
 	St_matrix(2,2) = 0.0;
+    if(!a_received)ROS_INFO("a ready!");
 	a_received = true;
-    ROS_INFO("a ready!");
 }
 
 void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg)
@@ -271,8 +302,8 @@ void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg)
 	St_matrix(0,1) = msg.x;
 	St_matrix(1,1) = msg.y;
 	St_matrix(2,1) = msg.z;
+    if(!v_received)ROS_INFO("v ready!");
     v_received = true;
-    ROS_INFO("v ready!");
 }
 
 void chatterCallback_Mode(const mavros::State &msg)//模式
@@ -281,6 +312,15 @@ void chatterCallback_Mode(const mavros::State &msg)//模式
     //ROS_INFO("offboard ready!");
 }
 
+void chatterCallback_field_size(const mavros_extras::FieldSize &msg)
+{
+    field_size_matrix(0,0) = msg.length;
+    field_size_matrix(0,1) = msg.width;
+    field_size_matrix(0,2) = msg.height;
+    field_size_matrix(0,3) = msg.times;
+    field_size_received = true;
+
+}
 void trajectory_Paras_generation_i(int num, float p0, float v0, float a0, float pf, float vf, float af, float T)//num 0,1,2 reoresents  x, y, z
 {
 	MatrixXd delt_s(3,1);

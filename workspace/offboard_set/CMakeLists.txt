@@ -36,3 +36,7 @@ add_dependencies(setpoints_publisher beginner_tutorials_generate_messages_cpp)
 add_executable(status_imitate src/status_imitate.cpp)  
 target_link_libraries(status_imitate ${catkin_LIBRARIES})  
 add_dependencies(status_imitate beginner_tutorials_generate_messages_cpp)
+
+add_executable(field_size_set src/field_size_set.cpp)  
+target_link_libraries(field_size_set ${catkin_LIBRARIES})  
+add_dependencies(field_size_set beginner_tutorials_generate_messages_cpp)

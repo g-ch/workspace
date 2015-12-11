@@ -57,6 +57,9 @@ add_message_files(
   CamIMUStamp.msg
   SonarDistance.msg
   LaserDistance.msg
+  RPLidar.msg
+  FieldSize.msg
+  FieldSizeConfirm.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -123,6 +126,10 @@ add_library(mavros_extras
   src/plugins/sonar_receiver.cpp
   src/plugins/laser_distance.cpp
   src/plugins/laser_receiver.cpp
+  src/plugins/field_size.cpp
+  src/plugins/field_size_receiver.cpp
+  src/plugins/field_size_confirm.cpp
+  src/plugins/field_size_confirm_receiver.cpp
 )
 add_dependencies(mavros_extras
   mavros_extras_generate_messages_cpp
