@@ -16,17 +16,17 @@ int main(int argc, char **argv)
 {  
  
   ros::init(argc, argv, "field_size_set");  
-  
-  size_msg.length = 10.0;
-  size_msg.width = 3.0;
-  size_msg.height = 4.0;
+
+  size_msg.length = 10.0f;
+  size_msg.width = 3.0f;
+  size_msg.height = 4.0f;
   size_msg.times = 6;
 
   ros::NodeHandle n;  
   ros::Publisher field_size_pub = n.advertise<mavros_extras::FieldSize>("field_size_set", 500);  
   ros::Subscriber confirm_sub = n.subscribe("/mavros/field_size_confirm_receiver/field_size_confirm_receiver", 200,chatterCallback_Field_Size_Confirm);
 
-  ros::Rate loop_rate(5);  
+  ros::Rate loop_rate(1);  
   
 
   while (ros::ok()&& !send_ok)  

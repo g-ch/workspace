@@ -46,7 +46,7 @@ private:
         mavlink_msg_field_size_confirm_pack_chan(UAS_PACK_CHAN(uas),&field_size_confirm_msg,a,b,c,d,e); //pack
         UAS_FCU(uas)->send_message(&field_size_confirm_msg); //send
 
-        ROS_INFO("size %d %f", field_size_confirm_msg.seq,a);
+        //ROS_INFO("size %d %f", field_size_confirm_msg.seq,a);
 
     }
 

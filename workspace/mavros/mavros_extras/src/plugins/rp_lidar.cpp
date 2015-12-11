@@ -8,8 +8,8 @@ namespace mavplugin {
 class RPLidarPlugin : public MavRosPlugin{
 
 public:
-        LaserReceiverPlugin():
-                laser_receiver_nh("~laser_receiver"),
+        RPLidarPlugin():
+                rp_lidar_nh("~rp_lidar"),
                 uas(nullptr)
 
         { };

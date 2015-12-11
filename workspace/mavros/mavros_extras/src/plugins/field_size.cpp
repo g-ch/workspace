@@ -48,13 +48,16 @@ private:
         mavlink_msg_field_size_pack_chan(UAS_PACK_CHAN(uas),&field_size_msg,a,b,c,d); //pack
         UAS_FCU(uas)->send_message(&field_size_msg); //send
 
-        ROS_INFO("size %d %f", field_size_msg.seq,a);
+        //ROS_INFO("size %d %f", field_size_msg.seq, a);
 
     }
 
     //callbacks
     void field_size_send_cb(const mavros_extras::FieldSize &msg){
         field_size_send(msg.length, msg.width, msg.height, msg.times);
+        ROS_INFO("%f", msg.length);
+
+
     }
 };
 
