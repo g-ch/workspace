@@ -25,32 +25,12 @@
 		<description>Publish camera trigger data for synchronisation of IMU and camera frames</description>
 	</class>
 
-        
 
-        <class name="sonar_receiver" type="mavplugin::SonarReceiverPlugin" base_class_type="mavplugin::MavRosPlugin">
-		<description>Writtren by Clarence Chan for sonar value</description>
-	</class>
-
-
-        <class name="laser_receiver" type="mavplugin::LaserReceiverPlugin" base_class_type="mavplugin::MavRosPlugin">
-		<description>Writtren by Clarence Chan for laser value</description>
-	</class>
-
-	<class name="laser_distance" type="mavplugin::LaserDistancePlugin" base_class_type="mavplugin::MavRosPlugin">
-		<description>Writtren by Clarence Chan for laser value</description>
-	</class>
-
-	<class name="field_size" type="mavplugin::FieldSizePlugin" base_class_type="mavplugin::MavRosPlugin">
-		<description>Writtren by Clarence Chan for field size</description>
-	</class>
 	<class name="field_size_receiver" type="mavplugin::FieldSizeReceiverPlugin" base_class_type="mavplugin::MavRosPlugin">
 		<description>Writtren by Clarence Chan for field size</description>
 	</class>
 
 	<class name="field_size_confirm" type="mavplugin::FieldSizeConfirmPlugin" base_class_type="mavplugin::MavRosPlugin">
-		<description>Writtren by Clarence Chan to confirm field size</description>
-	</class>
-	<class name="field_size_confirm_receiver" type="mavplugin::FieldSizeConfirmReceiverPlugin" base_class_type="mavplugin::MavRosPlugin">
 		<description>Writtren by Clarence Chan to confirm field size</description>
 	</class>
 

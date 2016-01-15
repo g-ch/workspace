@@ -5,6 +5,7 @@
 #include <mavros/State.h>
 #include "sensor_msgs/Imu.h"
 #include <geometry_msgs/Vector3.h>
+#include <std_msgs/Float32.h>
 #include <mavros_extras/FieldSize.h>
 #include <mavros_extras/FieldSizeConfirm.h>
 #include <Eigen/Dense>
@@ -22,6 +23,7 @@ void chatterCallback_imu_data(const sensor_msgs::Imu &msg);
 void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg);
 void chatterCallback_Mode(const mavros::State &msg);
 void chatterCallback_field_size(const mavros_extras::FieldSize &msg);
+void chatterCallback_rplidar(const std_msgs::Float32 &msg);
 
 void set_new_point(float x, float y, float z, float yaw, float t);
 bool near_bool(float x, float y);
@@ -60,6 +62,8 @@ MatrixXd field_size_matrix(1,4);//(length, width, height, times)
 
 double yaw = 0.0; //hudu
 double init_yaw = 0.0;
+float lidar_distance_last = 255.0;
+float lidar_distance_delt = 0.0;
 
 int main(int argc, char **argv)  
 {
@@ -84,6 +88,7 @@ int main(int argc, char **argv)
     ros::Subscriber velocity_sub = nh.subscribe("/mavros/local_position/local_velocity", 1000,chatterCallback_local_velocity);
     ros::Subscriber mode_sub = nh.subscribe("/mavros/state", 100,chatterCallback_Mode);
     ros::Subscriber field_sub = nh.subscribe("/mavros/field_size_receiver/field_size_receiver", 100,chatterCallback_field_size);
+    ros::Subscriber liadr_sub = nh.subscribe("/rplidar_message",50,chatterCallback_rplidar);
     ros::Publisher field_size_confirm_pub = nh.advertise<mavros_extras::FieldSizeConfirm>("field_size_confirm", 100);
     //imitate data
     //ros::Subscriber localposition_sub = nh.subscribe("/offboard/position_imitate", 500,chatterCallback_local_position);
@@ -164,6 +169,7 @@ void set_new_point(float x, float y, float z, float yaw, float t) //t is the tim
 	setpoint.x = x;
 	setpoint.y = y;
 	setpoint.z = z;
+       //setpoint.z = 5;
 	setpoint.yaw = 2*Pi-yaw;
     
     ros::NodeHandle n;
@@ -176,8 +182,9 @@ void set_new_point(float x, float y, float z, float yaw, float t) //t is the tim
 	ready_for_next = false;
 
 	while(ros::ok()){
+        setpoint.z += lidar_distance_delt;
     	setpoints_pub.publish(setpoint);
-        ROS_INFO("%f %f %f %f %d", setpoint.x,setpoint.y,setpoint.z,setpoint.yaw,rest_counter);
+        ROS_INFO("%f %f %f %f", setpoint.x,setpoint.y,setpoint.z,setpoint.yaw);
 
     	if(ready_for_next) rest_counter+=1;
 
@@ -250,6 +257,12 @@ void trajectory_generation(float T,float pxf, float pyf, float pzf,float vxf=0.0
     	loop_rate.sleep();
     }
 
+}
+void chatterCallback_rplidar(const std_msgs::Float32 &msg)
+{
+        if(lidar_distance_last != 255.0) lidar_distance_delt = msg.data - lidar_distance_last;//delt is positive, while last is negative
+        lidar_distance_last = msg.data;
+       // ROS_INFO("Lidar %f",msg.data);
 }
 
 void chatterCallback_local_position(const geometry_msgs::PoseStamped &msg)
