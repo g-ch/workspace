@@ -24,7 +24,6 @@ set(qt_hdrs
       src/mainwindow.h
       src/receiver.h
       src/painterWiget.h
-      src/camera.h
    )
 set(qt_resrcs src/Icons.qrc)
 
@@ -42,7 +41,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
 )
 
-add_executable(receiver src/receiver.cpp src/camera.cpp 
+add_executable(receiver src/receiver.cpp 
     ${uis_h} ${qt_srcs} ${qt_moc_srcs} ${qt_resrcs_RCC})
 target_link_libraries(receiver ${QT_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 add_dependencies(receiver receiver_generate_messages_cpp)

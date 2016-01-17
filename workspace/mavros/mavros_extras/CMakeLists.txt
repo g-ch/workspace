@@ -60,6 +60,9 @@ add_message_files(
   RPLidar.msg
   FieldSize.msg
   FieldSizeConfirm.msg
+  Rabbot.msg
+  PumpController.msg
+  PumpStatus.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -123,13 +126,15 @@ add_library(mavros_extras
   src/plugins/vibration.cpp
   src/plugins/cam_imu_sync.cpp
   #src/plugins/sonar_distance.cpp
-  src/plugins/sonar_receiver.cpp
-  src/plugins/laser_distance.cpp
-  src/plugins/laser_receiver.cpp
- // src/plugins/field_size.cpp
-  src/plugins/field_size_receiver.cpp
-  src/plugins/field_size_confirm.cpp
-//  src/plugins/field_size_confirm_receiver.cpp
+  #src/plugins/sonar_receiver.cpp
+  #src/plugins/laser_distance.cpp
+  #src/plugins/laser_receiver.cpp
+  src/plugins/field_size.cpp
+  #src/plugins/field_size_receiver.cpp
+  #src/plugins/field_size_confirm.cpp
+  src/plugins/field_size_confirm_receiver.cpp
+  src/plugins/pump_controller.cpp
+  src/plugins/pump_status.cpp
 )
 add_dependencies(mavros_extras
   mavros_extras_generate_messages_cpp

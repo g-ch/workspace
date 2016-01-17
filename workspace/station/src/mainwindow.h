@@ -9,9 +9,13 @@
 #include <iostream>
 #include "painterWiget.h"
 #include <QTime>
+#include <QTimer>
+#include <QDateTime>
 #include <QWheelEvent>
 #include <QMouseEvent>
 #include <QKeyEvent>
+
+#define SUCCESS_COUNTER_INIT 100
 
 using namespace std;
 
@@ -26,7 +30,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    bool eventFilter(QObject *obj,QEvent *event);
 
     StatusPainter *status_painter;//用于画图的类指针
     QPixmap *compass_arrow_pixmap;
@@ -47,39 +50,34 @@ private slots:
     void optical_Flow_Slot();//光流显示
     void temperature_Slot();//温度显示
     void time_Slot();//飞行时间显示
+    void offboard_Set_Slot();
+    void field_Size_Confirm_Slot();
+    void pump_Status_Slot();
+    void timer_Slot();
 
-    void camera_Image_Slot();//摄像头图像显示
-    void camera_Capture_Show_Slot();//截图显示在scrollarea
 
-    void on_pushButton_Open_Video_clicked();
-    void on_pushButton_Close_Video_clicked();
-    void on_pushButton_Capture_Video_clicked();
-
-    void on_spinBox_Num_editingFinished();
     //void on_comboBox_Num_currentIndexChanged(int index);
-
-
-    void on_listWidget_itemDoubleClicked(QListWidgetItem *item);//用于预览图片
-    void on_pushButton_Preview_clicked();
-    void on_listWidget_itemClicked(QListWidgetItem *item);
-    void on_listWidget_itemChanged(QListWidgetItem *item);
 
     void time_Update();
 
     void on_pushButton_Reset_FlyingTime_clicked();
 
-    void on_pushButton_Image_Recovery_clicked();
+    void on_pushButton_Route_Send_clicked();
 
-    void on_checkBox_Ruler_clicked();
+    void on_pushButton_Route_Generate_clicked();
+
+    void on_pushButton_Route_Reset_clicked();
+
+    void on_pushButton_OFFBOARD_Imitate_clicked();
+
+
+    void on_horizontalSlider_Spray_actionTriggered(int action);
 
 private:
     Ui::MainWindow *ui;
     QTime system_time;
     QImage image_resize;
 
-    float preview_scale_width;
-    float preview_scale_height;
-    int preview_current_num;
     QPoint mouse_pos;
 
 };

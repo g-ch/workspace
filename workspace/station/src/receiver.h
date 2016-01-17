@@ -16,6 +16,21 @@ struct Imu_Data
 {
 };
 
+struct Field_Size_Confirm
+{
+    float length;
+    float width;
+    float height;
+    int times;
+    int confirm;
+};
+struct Pump
+{
+    float pump_speed_sp;
+    float spray_speed_sp;
+    float pump_speed;
+    float spray_speed;
+};
 struct Global_Position
 {
     struct GPS
@@ -85,6 +100,14 @@ struct Optical_Flow
     double quality;
 };
 
+struct Field_Size
+{
+    float length;
+    float width;
+    float height;
+    int times;
+};
+
 class MavrosMessage : public QThread
 {
     Q_OBJECT
@@ -103,6 +126,12 @@ public:
     double time_fromboost;
     struct Wind_Speed wind_speed;
     struct Optical_Flow optical_flow;
+    struct Field_Size field_size;
+    struct Field_Size_Confirm field_size_confirm;
+    struct Pump pump;
+    int success_counter;
+
+
     /*******信号发射函数******/
     void msg_Send_State()const {emit state_Mode_Signal();}
     void msg_Send_GPS()const {emit global_GPS_Signal();}
@@ -116,6 +145,9 @@ public:
     void msg_Send_Imu_Data()const{emit imu_Data_Signal();}
     void msg_Send_Temperature()const{emit temperature_Signal();}
     void msg_Send_Time()const{emit time_Signal();}
+    void msg_Send_Offboard_Set()const{emit offboard_Set_Signal();}
+    void msg_Send_Field_Size_Confirm()const{emit field_Size_Confirm_Signal();}
+    void msg_Send_Pump_Status()const{emit pump_Status_Signal();}
 
     /**********信号**********/
 signals:
@@ -132,6 +164,9 @@ signals:
     void imu_Data_Signal()const;
     void temperature_Signal()const;
     void time_Signal()const;
+    void offboard_Set_Signal()const;
+    void field_Size_Confirm_Signal()const;
+    void pump_Status_Signal()const;
 };
 
 

@@ -25,5 +25,10 @@
         <file>Icons/sanfrancisco_bridge_100_100.png</file>
         <file>Icons/yepian3_100_100.png</file>
         <file>Icons/yepian_100_100.png</file>
+        <file>Icons/grass-720x540-2.png</file>
+        <file>Icons/grass-960x720.png</file>
+        <file>Icons/grass-960x720-2.png</file>
+        <file>Icons/grass-1080x810.png</file>
+        <file>Icons/grass-720x540.png</file>
     </qresource>
 </RCC>
