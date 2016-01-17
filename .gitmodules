@@ -1,0 +1,3 @@
+[submodule "workspace/crop_height"]
+    path = workspace/crop_height
+    url = git://github.com/owenqyzhang/crop_height.git
