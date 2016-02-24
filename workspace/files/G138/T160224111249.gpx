@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<gpx version="1.0" creator="ExpertGPS 1.1 - http://www.topografix.com" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/0" xsi:schemaLocation="http://www.topografix.com/GPX/1/0 http://www.topografix.com/GPX/1/0/gpx.xsd">
+	<name>track2016-02-24T11:12:49Z</name>
+	<time>2016-02-24T11:12:49Z</time>
+	<trk>
+		<name>T160224111249</name>
+		<number>5</number>
+		<extensions>
+			<color>0</color>
+			<visible>1</visible>
+			<vacuated>1</vacuated>
+			<length>95.155708</length>
+			<area>564.615540</area>
+			<starttime>2016-02-24T03:08:39Z</starttime>
+			<endtime>2016-02-24T03:10:18Z</endtime>
+		</extensions>
+		<trkseg>
+			<trkpt lat="31.027505" lon="121.443987">
+				<ele>4.850000</ele>
+				<time>2016-02-24T03:08:39Z</time>
+			</trkpt>
+			<trkpt lat="31.027345" lon="121.444073">
+				<ele>3.000000</ele>
+				<time>2016-02-24T03:09:07Z</time>
+			</trkpt>
+			<trkpt lat="31.027424" lon="121.444330">
+				<ele>2.200000</ele>
+				<time>2016-02-24T03:09:30Z</time>
+			</trkpt>
+			<trkpt lat="31.027602" lon="121.444258">
+				<ele>0.800000</ele>
+				<time>2016-02-24T03:09:49Z</time>
+			</trkpt>
+			<trkpt lat="31.027512" lon="121.443977">
+				<ele>0.200000</ele>
+				<time>2016-02-24T03:10:18Z</time>
+			</trkpt>
+		</trkseg>
+	</trk>
+</gpx>
+
