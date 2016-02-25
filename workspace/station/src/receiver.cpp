@@ -168,6 +168,7 @@ void chatterCallback_Mavlink(const mavros::Mavlink &msg) //mavlink原始信息
     //if(msg.msgid==105)cout<<msg<<endl;
     if(msg.msgid==212||msg.msgid==213)cout<<msg<<endl;
     message.msg_Send_GPS_Satellites();
+    if(msg.msgid==225)cout<<"redsadasa"<<endl;
 }
 void chatterCallback_Imu_Data(const sensor_msgs::Imu &msg)//传感器信息
 {

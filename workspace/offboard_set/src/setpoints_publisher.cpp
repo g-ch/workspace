@@ -1,4 +1,4 @@
-#include "ros/ros.h"  
+#include "ros/ros.h"
 #include "geometry_msgs/PoseStamped.h" 
 #include <mavros/SetPointLocal.h>
 #include <mavros/Vector3.h>
@@ -14,7 +14,10 @@
 #include <iostream>
 
 #define LOOP_RATE 20
-#define Pi 3.14159265
+#define Pi 3.1415926
+#define DELT_LIMIT_P 0.1 //need to test
+#define DELT_LIMIT_N -0.02 //need to test
+bool disable_fly_back = true;
 
 using Eigen::MatrixXd;
 
@@ -45,7 +48,10 @@ mavros_extras::FieldSizeConfirm field_size_confirm_msg;
 //paras for strategy without trajectory generation
 bool ready_for_next = false;
 int close_counter= 0;
+int confirm_counter=0;
+int lidar_counter=0;
 
+bool lidar_running = true;
 bool p_received = false;
 bool v_received = false;
 bool a_received = false;
@@ -62,12 +68,13 @@ MatrixXd field_size_matrix(1,4);//(length, width, height, times)
 
 double yaw = 0.0; //hudu
 double init_yaw = 0.0;
+float lidar_distance = 0.0;
 float lidar_distance_last = 255.0;
-float lidar_distance_delt = 0.0;
+float lidar_distance_delt = 2.0;//positive
 
 int main(int argc, char **argv)  
 {
-	ros::init(argc, argv, "setpoints_publisher");  
+    ros::init(argc, argv, "setpoints_publisher");  
     S0_matrix<<0.0,0.0,0.0,
                0.0,0.0,0.0,
                0.0,0.0,0.0;
@@ -88,7 +95,7 @@ int main(int argc, char **argv)
     ros::Subscriber velocity_sub = nh.subscribe("/mavros/local_position/local_velocity", 1000,chatterCallback_local_velocity);
     ros::Subscriber mode_sub = nh.subscribe("/mavros/state", 100,chatterCallback_Mode);
     ros::Subscriber field_sub = nh.subscribe("/mavros/field_size_receiver/field_size_receiver", 100,chatterCallback_field_size);
-    ros::Subscriber liadr_sub = nh.subscribe("/rplidar_message",50,chatterCallback_rplidar);
+    ros::Subscriber liadr_sub = nh.subscribe("/crop_dist",50,chatterCallback_rplidar);
     ros::Publisher field_size_confirm_pub = nh.advertise<mavros_extras::FieldSizeConfirm>("field_size_confirm", 100);
     //imitate data
     //ros::Subscriber localposition_sub = nh.subscribe("/offboard/position_imitate", 500,chatterCallback_local_position);
@@ -96,30 +103,42 @@ int main(int argc, char **argv)
     //ros::Subscriber velocity_sub = nh.subscribe("/offboard/velocity_imitate", 500,chatterCallback_local_velocity);
     //ros::Subscriber mode_sub = nh.subscribe("/offboard/mode_imitate", 100,chatterCallback_Mode);
     
-    ros::Rate wait_rate(4);
+    ros::Rate wait_rate(8);
 
     //wait for field points
     while(ros::ok() && !field_size_received)
     {  
+        if(confirm_counter!=10000) confirm_counter+=1;
+        else confirm_counter=1;
+        field_size_confirm_msg.confirm=confirm_counter;
         field_size_confirm_pub.publish(field_size_confirm_msg);
         ros::spinOnce();  
         wait_rate.sleep();
     }
     ROS_INFO("Field Size Received!");
     //wait for offboard mode
+    
+   
+   while(ros::ok()){
+   while(ros::ok()&&offboard_ready)
+   {
+        ros::spinOnce();
+        wait_rate.sleep();
+   }
     while(ros::ok())
     {
     	if(p_received && v_received && a_received)
     	{
     		if(offboard_ready) break;
-    		set_new_point(St_matrix(0,0),St_matrix(1,0),St_matrix(2,0),yaw, 0.0);             
+    		set_new_point(St_matrix(0,0),St_matrix(1,0),St_matrix(2,0),yaw, 0.0);
+                ROS_INFO("Waiting for OFFBOARD!");             
     	}
-
+        confirm_counter+=1;
         field_size_confirm_msg.length = field_size_matrix(0,0);
         field_size_confirm_msg.width = field_size_matrix(0,1);
         field_size_confirm_msg.height = field_size_matrix(0,2);
         field_size_confirm_msg.times = (int)field_size_matrix(0,3);
-        field_size_confirm_msg.confirm = 1;
+        field_size_confirm_msg.confirm = confirm_counter;
         field_size_confirm_pub.publish(field_size_confirm_msg);
 
     	ros::spinOnce();  
@@ -133,6 +152,7 @@ int main(int argc, char **argv)
     init_yaw = yaw;
     
     ROS_INFO("Initial Point Set, Auto Flying!");
+    lidar_distance = field_size_matrix(0,2);
     field_2_setpoint(field_size_matrix(0,0), field_size_matrix(0,1), field_size_matrix(0,2), (int)field_size_matrix(0,3), init_yaw);
 
     //trajectory_generation(5.0, init_p_matrix(0,0)+10.0, init_p_matrix(0,1)+0.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
@@ -142,6 +162,7 @@ int main(int argc, char **argv)
     //trajectory_generation(5.0, init_p_matrix(0,0)+0.0, init_p_matrix(0,1)+8.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     //ROS_INFO("NEXT POINT");
     //trajectory_generation(4.0, init_p_matrix(0,0)+0.0, init_p_matrix(0,1)+0.0, 6.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    }
 
     return 0;
 
@@ -149,17 +170,18 @@ int main(int argc, char **argv)
 
 void field_2_setpoint(float l, float w, float h, int times=1, float yaw=0.0)
 {
-	int counter;
-    set_new_point(init_p_matrix(0,0), init_p_matrix(0,1), h, yaw, 0.4);
-	for(counter = 0;counter<times;counter++)
+       int counter;
+       if(h<0.5)h=init_p_matrix(0,2);
+       set_new_point(init_p_matrix(0,0), init_p_matrix(0,1), h, yaw, 0.4);
+	for(counter = 0;(counter<times)&&(offboard_ready);counter++)
 	{
-		if(counter%2==0){
-			set_new_point(init_p_matrix(0,0)+l*cos(yaw)+counter*w*sin(yaw), init_p_matrix(0,1)+counter*w*cos(yaw)-l*sin(yaw), h, yaw, 0.1);
-            set_new_point(init_p_matrix(0,0)+l*cos(yaw)+(counter*w+w)*sin(yaw), init_p_matrix(0,1)+(counter*w+w)*cos(yaw)-l*sin(yaw), h, yaw, 0.1);
-		}
-		else{
+		if(counter%2==0){     
+			set_new_point(init_p_matrix(0,0)+l*cos(yaw)+counter*w*sin(yaw), init_p_matrix(0,1)+counter*w*cos(yaw)-l*sin(yaw), h, yaw, 0.1);//length
+                        if(counter<times-1)set_new_point(init_p_matrix(0,0)+l*cos(yaw)+(counter*w+w)*sin(yaw), init_p_matrix(0,1)+(counter*w+w)*cos(yaw)-l*sin(yaw), h, yaw, 0.1);//width
+		} 
+		else{  
 			set_new_point(init_p_matrix(0,0)+counter*w*sin(yaw), init_p_matrix(0,1)+counter*w*cos(yaw), h, yaw, 0.1);
-			set_new_point(init_p_matrix(0,0)+(counter*w+w)*sin(yaw), init_p_matrix(0,1)+(counter*w+w)*cos(yaw), h, yaw, 0.1);
+			if(counter<times-1)set_new_point(init_p_matrix(0,0)+(counter*w+w)*sin(yaw), init_p_matrix(0,1)+(counter*w+w)*cos(yaw), h, yaw, 0.1);
 		}
 	}
 }
@@ -168,27 +190,65 @@ void set_new_point(float x, float y, float z, float yaw, float t) //t is the tim
 {
 	setpoint.x = x;
 	setpoint.y = y;
-	setpoint.z = z;
-       //setpoint.z = 5;
 	setpoint.yaw = 2*Pi-yaw;
     
-    ros::NodeHandle n;
+        ros::NodeHandle n;
 	ros::Publisher setpoints_pub = n.advertise<mavros::SetPointLocal>("offboard/setpoints_local", 500);
-    
-    int rest_counter = 0;
-    int max = (int)(t*10);
+        //ros::Publisher confirm_pub = n.advertise<mavros_extras::FieldSizeConfirm>("field_size_confirm",100);   
+        int rest_counter = 0;
+        int max = (int)(t*10);
 	ros::Rate loop_rate(10);
 
 	ready_for_next = false;
-
+        float delt = 0.0;
+        
 	while(ros::ok()){
-        setpoint.z += lidar_distance_delt;
+        
+        if(offboard_ready) 
+        {
+             if(setpoint.z < 0.2) setpoint.z = z;
+             if(lidar_distance < 0.2) lidar_distance = z;
+             delt = z - lidar_distance; //lidar_distance has been set to positive
+             if(delt > DELT_LIMIT_P) delt = DELT_LIMIT_P;
+             if(delt < DELT_LIMIT_N) delt = DELT_LIMIT_N;
+             if(!lidar_running) 
+             {
+                 delt = 0.0;
+                 setpoint.x = St_matrix(0,0);
+                 setpoint.y = St_matrix(1,0);
+             }
+             else {setpoint.x = x; setpoint.y = y;}
+             setpoint.z = setpoint.z + delt;
+        }
+        else setpoint.z = z;
+
+        
+	if(setpoint.z>10) {setpoint.z = 10.0;}
+
     	setpoints_pub.publish(setpoint);
         ROS_INFO("%f %f %f %f", setpoint.x,setpoint.y,setpoint.z,setpoint.yaw);
-
+        
+        //if(confirm_counter!=10000)confirm_counter+=1;
+        //else confirm_counter=10000;
+       // field_size_confirm_msg.confirm=confirm_counter;
+       // if(confirm_counter%3==0)confirm_pub.publish(field_size_confirm_msg);
+        
     	if(ready_for_next) rest_counter+=1;
 
         if(rest_counter > max) break;
+        if(disable_fly_back && (!offboard_ready)) break;
+
+        //check if lidar is running
+        lidar_counter += 1;
+        if(lidar_counter > 20)
+        {
+             if(fabs(lidar_distance_last - lidar_distance)<0.00001) lidar_running = false;
+             else lidar_running = true;
+             if(fabs(lidar_distance-6.0)<0.01)
+	     {lidar_running = true;}
+              lidar_distance_last = lidar_distance;
+              lidar_counter = 0;
+        }
 
     	ros::spinOnce();  
     	loop_rate.sleep();
@@ -260,16 +320,16 @@ void trajectory_generation(float T,float pxf, float pyf, float pzf,float vxf=0.0
 }
 void chatterCallback_rplidar(const std_msgs::Float32 &msg)
 {
-        if(lidar_distance_last != 255.0) lidar_distance_delt = msg.data - lidar_distance_last;//delt is positive, while last is negative
-        lidar_distance_last = msg.data;
+        //if(lidar_distance_last != 255.0) lidar_distance_delt = msg.data - lidar_distance_last;//delt is positive, while last is negative
+        //lidar_distance_last = msg.data; 
+        lidar_distance = 0.0-msg.data;
        // ROS_INFO("Lidar %f",msg.data);
 }
 
 void chatterCallback_local_position(const geometry_msgs::PoseStamped &msg)
 {
 	//judge if close to set ready
-	if(near_bool(setpoint.x, msg.pose.position.x)&&near_bool(setpoint.y, msg.pose.position.y)&&
-		near_bool(setpoint.z, msg.pose.position.z))
+	if(near_bool(setpoint.x, msg.pose.position.x)&&near_bool(setpoint.y, msg.pose.position.y))
 		close_counter += 1;
 	else {
 		close_counter = 0;
@@ -322,6 +382,7 @@ void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg)
 void chatterCallback_Mode(const mavros::State &msg)//模式
 {
     if(msg.mode=="OFFBOARD") offboard_ready=true;
+    else offboard_ready=false;
     //ROS_INFO("offboard ready!");
 }
 
@@ -331,7 +392,7 @@ void chatterCallback_field_size(const mavros_extras::FieldSize &msg)
     field_size_matrix(0,1) = msg.width;
     field_size_matrix(0,2) = msg.height;
     field_size_matrix(0,3) = msg.times;
-    field_size_received = true;
+    if(msg.times>0)field_size_received = true;
 
 }
 void trajectory_Paras_generation_i(int num, float p0, float v0, float a0, float pf, float vf, float af, float T)//num 0,1,2 reoresents  x, y, z
@@ -354,7 +415,7 @@ void trajectory_Paras_generation_i(int num, float p0, float v0, float a0, float 
 
 bool near_bool(float x, float y)
 {
-	if(x-y<0.6 && x-y>-0.6)
+	if(x-y<1.0 && x-y>-1.0)
 		return true;
 	else return false;
 }

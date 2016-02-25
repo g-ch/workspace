@@ -23,12 +23,11 @@ int main(int argc, char **argv)
   ros::Publisher offboard_pub = nh2.advertise<geometry_msgs::PoseStamped>("offboard/setpoints", 1000);  
   ros::Subscriber setpoint_sub = nh2.subscribe("/offboard/setpoints_local", 500, set_position);
 
-  ros::Rate loop_rate(25);
+  ros::Rate loop_rate(16);
   while (ros::ok())  
   {  
     if(setpoints_ready){
-    //if(setpoints_ready){
-        ROS_INFO("%f %f %f", msg.pose.position.x,msg.pose.position.y,msg.pose.position.z);
+        //ROS_INFO("%f %f %f", msg.pose.position.x,msg.pose.position.y,msg.pose.position.z);
         offboard_pub.publish(msg);     
     }
     ros::spinOnce();  

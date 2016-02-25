@@ -159,11 +159,12 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton_Route_Generate->setEnabled(true);
     ui->pushButton_Route_Reset->setEnabled(false);
     ui->pushButton_Route_Send->setEnabled(false);
+    ui->pushButton_OFFBOARD_Imitate->deleteLater();
 
     ui->lineEdit_Offboard_Speed->setEnabled(false);
 
     ui->progressBar_GPS->setRange(0,15);
-    ui->progressBar_Battery->setRange(19,25);
+    ui->progressBar_Battery->setRange(190,240);
     ui->progressBar_RC->setRange(0,200);
 
     //set conection display
@@ -180,14 +181,14 @@ MainWindow::~MainWindow()
 void MainWindow::state_Mode_Slot()
 {
     ui->label_Mode->setText(QString::fromStdString(message.mode));
-    if(controller_flag!=100)controller_flag+=1;
+    if(controller_flag!=10000)controller_flag+=1;
     else controller_flag=1;
 }
 
 void MainWindow::battey_Slot()
 {
     ui->lineEdit_Battery->setText(QString::number(message.battery_voltage));
-    ui->progressBar_Battery->setValue((message.battery_voltage>25)?25:message.battery_voltage);
+    ui->progressBar_Battery->setValue(((message.battery_voltage>24.5)?24.5:message.battery_voltage)*10);
 }
 
 void MainWindow::radio_Status_Slot()
@@ -262,9 +263,9 @@ void MainWindow::local_Position_Slot()
     save_counter++;
     if(message.mode=="自动喷洒" && save_counter%10==1)
     {
-         float yaw = message.local_position.orientation.yaw + 3.1416;
-         real_position[position_num][0]=message.local_position.position.x*cos(yaw) + message.local_position.position.y*sin(yaw);
-         real_position[position_num][1]=message.local_position.position.y*cos(yaw) - message.local_position.position.x*sin(yaw);
+         float yaw = message.local_position.orientation.yaw + 3.14/2;
+         real_position[position_num][0]=message.local_position.position.x*cos(yaw) - message.local_position.position.y*sin(yaw);
+         real_position[position_num][1]=-(message.local_position.position.y*cos(yaw) + message.local_position.position.x*sin(yaw));
 
          //画出飞行图
          QPainter painter;
@@ -374,15 +375,15 @@ void MainWindow::time_Update()
         sprintf(flying_time_temp,"%d:%d",minutes,seconds);
         ui->label_Flying_Time->setText(flying_time_temp);
     }
-    if(seconds%3==0)timer_Slot();
+    timer_Slot();
 }
 
 void MainWindow::timer_Slot()
 {
-    if(controller_flag_last!=controller_flag) ui->label_Controller->setStyleSheet("background-color:green");
+    if(controller_flag>0) ui->label_Controller->setStyleSheet("background-color:green");
     else ui->label_Controller->setStyleSheet("background-color:red");
 
-    if(computer_flag_last!=computer_flag) ui->label_Computer->setStyleSheet("background-color:green");
+    if(computer_flag>0) ui->label_Computer->setStyleSheet("background-color:green");
     else ui->label_Computer->setStyleSheet("background-color:red");
 
     controller_flag_last=controller_flag;
@@ -555,5 +556,5 @@ void MainWindow::on_horizontalSlider_Spray_actionTriggered(int action)
 
 void MainWindow::pump_Status_Slot()
 {
-    ui->lineEdit_Spray_Speed->setText(QString::number((message.pump.spray_speed+1)*50));
+    ui->lineEdit_Spray_Speed->setText(QString::number(message.pump.spray_speed));
 }
