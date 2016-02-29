@@ -7,21 +7,6 @@
 
 using namespace std;
 
-double gps_fence[1000][2];
-double gps_fence_cp1[1000][2];
-double gps_fence_cp2[1000][2];
-double gps_fence_cp3[1000][2];
-
-int gps_num = 0;
-int gps_num_cp1 = 0;
-int gps_num_cp2 = 0;
-int gps_num_cp3 = 0;
-
-int list_seq = 0;
-int list_seq_cp = 0;
-int list_seq_cp1 = 0;
-int list_seq_cp2 = 0;
-int list_seq_cp3 = 0;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -29,6 +14,24 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     ui->pushButton_2->setEnabled(false);
+
+    gps_fence_label = new QLabel(ui->frame);
+    gps_fence_label->setFixedWidth(FENCE_AREA_LEN);
+    gps_fence_label->setFixedHeight(FENCE_AREA_HEI);
+    gps_fence_label->move(0,0);
+
+    gps_num = 0;
+    gps_num_cp1 = 0;
+    gps_num_cp2 = 0;
+    gps_num_cp3 = 0;
+
+    list_seq = 0;
+    list_seq_cp1 = 0;
+    list_seq_cp2 = 0;
+    list_seq_cp3 = 0;
+
+    home_lat = 31;
+    home_lon = 121;
 }
 
 MainWindow::~MainWindow()
@@ -92,10 +95,10 @@ void MainWindow::on_pushButton_clicked()
               gps_num++;//counter for next point
           }
       }
-
+      gps_num -= 1; //correct num
       gps_f.close(); //reading finished
       //add items
-      for(int i=1;i<=gps_num;i++)
+      for(int i=1;i<=gps_num+1;i++)
       {
           char name[10]="Point";
           char num[4];
@@ -103,19 +106,60 @@ void MainWindow::on_pushButton_clicked()
           strcat(name,num);
           ui->listWidget->addItem(new QListWidgetItem(QObject::tr(name)));
       }
-
+      cout<<"$$"<<gps_fence[4][1];
+      draw_gps_fence();
   }
 
 }
 
-void MainWindow::on_listWidget_itemClicked(QListWidgetItem *item)
+void MainWindow::draw_gps_fence()
+{
+    //find min,max and calculate scale
+    double lat_max = gps_fence[0][0];
+    double lat_min = gps_fence[0][0];
+    double lon_max = gps_fence[0][1];
+    double lon_min = gps_fence[0][1];
+    for(int i=1;i<=gps_num;i++)
+    {
+        if(gps_fence[i][0]>lat_max) lat_max = gps_fence[i][0];
+        if(gps_fence[i][0]<lat_min) lat_min = gps_fence[i][0];
+        if(gps_fence[i][1]>lon_max) lon_max = gps_fence[i][1];
+        if(gps_fence[i][1]<lon_min) lon_min = gps_fence[i][1];
+    }
+    float scale_lat = (FENCE_AREA_HEI-80)/(lat_max-lat_min); //40 for edge
+    float scale_lon = (FENCE_AREA_LEN-120)/(lon_max-lon_min); //60 for edge
+    float scale = (scale_lat<scale_lon) ? scale_lat : scale_lon;
+
+    //draw lines
+    QPainter painter;
+    QImage image("/home/cc/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
+    painter.begin(&image);
+    painter.setPen(QPen(Qt::blue,4));
+
+    for(int j=0;j<gps_num;j++)
+    {
+        float px=(gps_fence[j][1]-lon_min)*scale+60;
+        float py=FENCE_AREA_HEI-(gps_fence[j][0]-lat_min)*scale-60;
+        float pnx=(gps_fence[j+1][1]-lon_min)*scale+60;
+        float pny=FENCE_AREA_HEI-(gps_fence[j+1][0]-lat_min)*scale-60;
+        painter.drawLine(px,py,pnx,pny);
+        painter.drawEllipse(px,py,10,10);
+    }
+    painter.drawLine((gps_fence[gps_num][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60,(gps_fence[0][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[0][0]-lat_min)*scale-60);
+    painter.drawEllipse((gps_fence[gps_num][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60,10,10);
+    painter.end();
+    gps_fence_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
+
+}
+
+void MainWindow::on_listWidget_itemClicked()
 {
     list_seq = ui->listWidget->currentRow();
     ui->pushButton_2->setEnabled(true);
     cout<<list_seq<<endl;
 }
 
-void delete_point(int x) //x start with 0
+void MainWindow::delete_point(int x) //x start with 0
 {
     //store
     memcpy(gps_fence_cp3,gps_fence_cp2,16000);
@@ -126,8 +170,7 @@ void delete_point(int x) //x start with 0
     gps_num_cp1=gps_num;
     list_seq_cp3=list_seq_cp2;
     list_seq_cp2=list_seq_cp1;
-    list_seq_cp1=list_seq_cp;
-    list_seq_cp =list_seq;
+    list_seq_cp1=list_seq;
 
     //delete
     for(int i=x;i<gps_num;i++)
@@ -138,26 +181,21 @@ void delete_point(int x) //x start with 0
     gps_num -= 1;
 }
 
-bool restore_point()
+bool MainWindow::restore_point()
 {
     if(gps_fence_cp1[0][0]>0){
         memcpy(gps_fence,gps_fence_cp1,16000);
         gps_num=gps_num_cp1;
-        list_seq_cp=list_seq_cp1;
 
-        if(gps_fence_cp2[0][0]>0){
-            memcpy(gps_fence_cp1,gps_fence_cp2,16000);
-            gps_num_cp1=gps_num_cp2;
-            list_seq_cp1=list_seq_cp2;
+        memcpy(gps_fence_cp1,gps_fence_cp2,16000);
+        gps_num_cp1=gps_num_cp2;
 
-            if(gps_fence_cp2[0][0]>0){
-                memcpy(gps_fence_cp2,gps_fence_cp3,16000);
-                gps_fence_cp3[0][0]=0.0;
-                gps_num_cp2=gps_num_cp3;
-                list_seq_cp2=list_seq_cp1;
-            }
-        }
+        memcpy(gps_fence_cp2,gps_fence_cp3,16000);
+        gps_fence_cp3[0][0]=0.0;
+        gps_num_cp2=gps_num_cp3;
+
         cout<<gps_fence[2][0]<<endl;
+
         return true;
     }
     return false;
@@ -165,17 +203,73 @@ bool restore_point()
 
 void MainWindow::on_pushButton_2_clicked()
 {
+    //store seq and item
+    list_seq = ui->listWidget->currentRow();
+    item_cp3=item_cp2;
+    item_cp2=item_cp1;
+    item_cp1=ui->listWidget->currentItem();
+
     delete_point(list_seq);
     ui->listWidget->takeItem(list_seq);
+
     cout<<gps_fence[2][0]<<endl;
+    draw_gps_fence();
 }
 
 void MainWindow::on_pushButton_3_clicked()
 {
     if(restore_point())
     {
-        QListWidgetItem *newitem = new QListWidgetItem;
-        newitem->setText(tr("Point")+QString::number(list_seq_cp));
-        ui->listWidget->insertItem(list_seq_cp,newitem);
+        ui->listWidget->insertItem(list_seq_cp1,item_cp1);
+        item_cp1=item_cp2;
+        item_cp2=item_cp3;
+
+        list_seq_cp1=list_seq_cp2;
+        list_seq_cp2=list_seq_cp3;
     }
+    draw_gps_fence();
+    cout<<endl;
 }
+
+void MainWindow::gps_to_local(double lat, double lon, float *x, float *y)
+{
+    /*double lat_rad = lat * DEG_TO_RAD;
+    double lon_rad = lon * DEG_TO_RAD;
+    double home_lat_rad = home_lat * DEG_TO_RAD;
+    double home_lon_rad = home_lon * DEG_TO_RAD;
+
+    double sin_lat = sin(lat_rad);
+    double cos_lat = cos(lat_rad);
+    double sin_home_lat = sin(home_lat_rad);
+    double cos_home_lat = cos(home_lon_rad);
+    double cos_d_lon = cos(lon_rad - home_lon_rad);
+
+    double arg = sin_home_lat * sin_lat + cos_home_lat * cos_lat * cos_d_lon;
+
+    if (arg > 1.0) {
+            arg = 1.0;
+
+    } else if (arg < -1.0) {
+            arg = -1.0;
+    }
+
+    double c = acos(arg);
+    double k = (fabs(c) < DBL_EPSILON) ? 1.0 : (c / sin(c));
+
+    *x = k * (cos_home_lat * sin_lat - sin_home_lat * cos_lat * cos_d_lon) * CONSTANTS_RADIUS_OF_EARTH;
+    *y = k * cos_lat * sin(lon_rad - home_lon_rad) * CONSTANTS_RADIUS_OF_EARTH;*/
+
+    //http://blog.sina.com.cn/s/blog_658a93570101hynw.html
+}
+
+void MainWindow::on_pushButton_4_clicked()
+{
+    float local_x = 0.0;
+    float local_y = 0.0;
+
+    gps_to_local(32.0,122.0,&local_x,&local_y);
+    cout<<local_x<<"  "<<local_y<<endl;
+    //cout<<*x<<"  "<<*y<<endl;
+}
+
+
