@@ -30,8 +30,8 @@ MainWindow::MainWindow(QWidget *parent) :
     list_seq_cp2 = 0;
     list_seq_cp3 = 0;
 
-    home_lat = 31;
-    home_lon = 121;
+    home_lat = 31.027505;
+    home_lon = 121.443987;
 }
 
 MainWindow::~MainWindow()
@@ -92,6 +92,7 @@ void MainWindow::on_pushButton_clicked()
                   lon += ((double)(str[n]-'0'))/pow(10,(n-point_p));
               cout<<endl<<"lon:"<<lon;
               gps_fence[gps_num][1]=lon;//save
+              gps_fence[gps_num][2]=gps_num;
               gps_num++;//counter for next point
           }
       }
@@ -139,14 +140,24 @@ void MainWindow::draw_gps_fence()
     for(int j=0;j<gps_num;j++)
     {
         float px=(gps_fence[j][1]-lon_min)*scale+60;
-        float py=FENCE_AREA_HEI-(gps_fence[j][0]-lat_min)*scale-60;
+        float py=(FENCE_AREA_HEI-(gps_fence[j][0]-lat_min)*scale-60)/1.2; //1.2 to calibrate
         float pnx=(gps_fence[j+1][1]-lon_min)*scale+60;
-        float pny=FENCE_AREA_HEI-(gps_fence[j+1][0]-lat_min)*scale-60;
+        float pny=(FENCE_AREA_HEI-(gps_fence[j+1][0]-lat_min)*scale-60)/1.2;
         painter.drawLine(px,py,pnx,pny);
         painter.drawEllipse(px,py,10,10);
+        QRectF rect(px+20, py+20, px+75, py+75);
+        painter.drawText(rect, Qt::AlignLeft,tr("Point")+QString::number(gps_fence[j][2]+1));
     }
-    painter.drawLine((gps_fence[gps_num][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60,(gps_fence[0][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[0][0]-lat_min)*scale-60);
-    painter.drawEllipse((gps_fence[gps_num][1]-lon_min)*scale+60,FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60,10,10);
+
+    //draw line between the last and the first point
+    painter.drawLine((gps_fence[gps_num][1]-lon_min)*scale+60,(FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60)/1.2,(gps_fence[0][1]-lon_min)*scale+60,(FENCE_AREA_HEI-(gps_fence[0][0]-lat_min)*scale-60)/1.2);
+    float last_point_x = (gps_fence[gps_num][1]-lon_min)*scale+60;
+    float last_point_y = (FENCE_AREA_HEI-(gps_fence[gps_num][0]-lat_min)*scale-60)/1.2;
+
+    //draw last point
+    painter.drawEllipse(last_point_x,last_point_y,10,10);
+    QRectF rect(last_point_x+20, last_point_y+20, last_point_x+75, last_point_y+75);
+    painter.drawText(rect, Qt::AlignLeft,tr("Point")+QString::number(gps_fence[gps_num][2]+1));
     painter.end();
     gps_fence_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
 
@@ -177,6 +188,7 @@ void MainWindow::delete_point(int x) //x start with 0
     {
         gps_fence[i][0]=gps_fence[i+1][0];
         gps_fence[i][1]=gps_fence[i+1][1];
+        gps_fence[i][2]=gps_fence[i+2][2];
     }
     gps_num -= 1;
 }
@@ -233,18 +245,20 @@ void MainWindow::on_pushButton_3_clicked()
 
 void MainWindow::gps_to_local(double lat, double lon, float *x, float *y)
 {
-    /*double lat_rad = lat * DEG_TO_RAD;
+    double lat_rad = lat * DEG_TO_RAD;
     double lon_rad = lon * DEG_TO_RAD;
     double home_lat_rad = home_lat * DEG_TO_RAD;
     double home_lon_rad = home_lon * DEG_TO_RAD;
 
-    double sin_lat = sin(lat_rad);
+    //algorithm from px4
+    /*double sin_lat = sin(lat_rad);
     double cos_lat = cos(lat_rad);
     double sin_home_lat = sin(home_lat_rad);
     double cos_home_lat = cos(home_lon_rad);
     double cos_d_lon = cos(lon_rad - home_lon_rad);
 
     double arg = sin_home_lat * sin_lat + cos_home_lat * cos_lat * cos_d_lon;
+    cout<<"arg="<<arg<<endl;
 
     if (arg > 1.0) {
             arg = 1.0;
@@ -259,17 +273,23 @@ void MainWindow::gps_to_local(double lat, double lon, float *x, float *y)
     *x = k * (cos_home_lat * sin_lat - sin_home_lat * cos_lat * cos_d_lon) * CONSTANTS_RADIUS_OF_EARTH;
     *y = k * cos_lat * sin(lon_rad - home_lon_rad) * CONSTANTS_RADIUS_OF_EARTH;*/
 
+    //easiest algorithm
+    *x = (lat_rad - home_lat_rad)*CONSTANTS_RADIUS_OF_EARTH;  //NWU Coodinate
+    *y = cos((lat_rad+home_lat_rad)/2)*CONSTANTS_RADIUS_OF_EARTH*(home_lon_rad-lon_rad);
     //http://blog.sina.com.cn/s/blog_658a93570101hynw.html
 }
 
 void MainWindow::on_pushButton_4_clicked()
 {
-    float local_x = 0.0;
-    float local_y = 0.0;
+    //calculate fence local position
+    if(gps_fence[0][0]>0){
+        for(int i=0;i<=gps_num;i++)
+        {
+            gps_to_local(gps_fence[i][0],gps_fence[i][1],&gps_fence_local[i][0],&gps_fence_local[i][1]);
+            cout<<gps_fence_local[i][0]<<" + "<<gps_fence_local[i][1]<<endl;
+        }
+    }
 
-    gps_to_local(32.0,122.0,&local_x,&local_y);
-    cout<<local_x<<"  "<<local_y<<endl;
-    //cout<<*x<<"  "<<*y<<endl;
 }
 
 

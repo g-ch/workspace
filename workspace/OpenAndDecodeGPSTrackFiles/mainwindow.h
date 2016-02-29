@@ -56,15 +56,16 @@ private:
 
     QLabel *gps_fence_label;
 
-    double gps_fence[1000][2];
-    double gps_fence_cp1[1000][2];
-    double gps_fence_cp2[1000][2];
-    double gps_fence_cp3[1000][2];
+    double gps_fence[1000][3];
+    double gps_fence_cp1[1000][3];
+    double gps_fence_cp2[1000][3];
+    double gps_fence_cp3[1000][3];
+    float gps_fence_local[1000][2];
 
     double home_lat;
     double home_lon;
 
-    int gps_num;
+    int gps_num;//start from 0
     int gps_num_cp1;
     int gps_num_cp2;
     int gps_num_cp3;
