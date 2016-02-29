@@ -133,7 +133,7 @@ void MainWindow::draw_gps_fence()
 
     //draw lines
     QPainter painter;
-    QImage image("/home/cc/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
+    QImage image("/home/chg/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
     painter.begin(&image);
     painter.setPen(QPen(Qt::blue,4));
 
@@ -188,7 +188,7 @@ void MainWindow::delete_point(int x) //x start with 0
     {
         gps_fence[i][0]=gps_fence[i+1][0];
         gps_fence[i][1]=gps_fence[i+1][1];
-        gps_fence[i][2]=gps_fence[i+2][2];
+        gps_fence[i][2]=gps_fence[i+1][2];
     }
     gps_num -= 1;
 }
@@ -279,9 +279,10 @@ void MainWindow::gps_to_local(double lat, double lon, float *x, float *y)
     //http://blog.sina.com.cn/s/blog_658a93570101hynw.html
 }
 
-void MainWindow::on_pushButton_4_clicked()
+void MainWindow::turn_point_cal()
 {
     //calculate fence local position
+    float gps_fence_local[MAX_POINT_NUM][2];
     if(gps_fence[0][0]>0){
         for(int i=0;i<=gps_num;i++)
         {
@@ -289,7 +290,32 @@ void MainWindow::on_pushButton_4_clicked()
             cout<<gps_fence_local[i][0]<<" + "<<gps_fence_local[i][1]<<endl;
         }
     }
+    //calculate lines, form: y=kx+b
+    float paras[gps_num+1][4]; //(k,b,x1,x2)
+    for(int i=0;i<=gps_num;i++)
+    {
+        if(i==gps_num)
+        {
+            paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[0][1])/(gps_fence_local[i][0]-gps_fence_local[0][0]);
+            paras[i][1] = gps_fence_local[i][1]-paras[i][0]*gps_fence_local[i][0];
+            paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
+            paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
+        }
+        else
+        {
+            paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[i+1][1])/(gps_fence_local[i][0]-gps_fence_local[i+1][0]);
+            paras[i][1] = gps_fence_local[i][1]-paras[i][0]*gps_fence_local[i][0];
+            paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
+            paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
+        }
+    }
+    //calculate turning points
 
+}
+
+void MainWindow::on_pushButton_4_clicked()
+{
+    turn_point_cal();
 }
 
 

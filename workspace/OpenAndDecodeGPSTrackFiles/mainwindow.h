@@ -6,10 +6,14 @@
 
 #define DEG_TO_RAD 	0.01745329251994
 #define RAD_TO_DEG 	57.2957795130823
+
 #define PI 3.14159265358979323846
 #define PI_2 1.57079632679489661923
+
 #define DBL_EPSILON 2.2204460492503131e-16
 #define CONSTANTS_RADIUS_OF_EARTH 6371393
+
+#define MAX_POINT_NUM 1000
 
 #include <QMainWindow>
 #include <QListWidgetItem>
@@ -45,6 +49,7 @@ private slots:
 
     void gps_to_local(double lat, double lon, float *x, float *y);
 
+    void turn_point_cal();
 
     void on_pushButton_4_clicked();
 
@@ -56,11 +61,11 @@ private:
 
     QLabel *gps_fence_label;
 
-    double gps_fence[1000][3];
-    double gps_fence_cp1[1000][3];
-    double gps_fence_cp2[1000][3];
-    double gps_fence_cp3[1000][3];
-    float gps_fence_local[1000][2];
+    double gps_fence[MAX_POINT_NUM][3];
+    double gps_fence_cp1[MAX_POINT_NUM][3];
+    double gps_fence_cp2[MAX_POINT_NUM][3];
+    double gps_fence_cp3[MAX_POINT_NUM][3];
+
 
     double home_lat;
     double home_lon;
