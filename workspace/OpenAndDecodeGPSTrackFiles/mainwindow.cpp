@@ -335,16 +335,35 @@ void MainWindow::turn_point_cal()
     }
     /*calculate turning points*/
     //1.calculate proper distance between lines
-    float maxd_left = 0.0, maxd_right = 0.0;
+
+    float maxd_up = 0.0, maxd_down = 0.0, mind_up = 100000.0, mind_down = 100000.0;
+    bool up_bool = false, down_bool = false;
+    float d_total = 0.0;
+
     for(int i=0;i<=gps_num;i++)
     {
         float dist_temp = point_line_dist(gps_fence_local[i][0],gps_fence_local[i][1],diraction_k,0.0);
         //judge if point is on leftside or rightside of line y = direction_k*x
         if(gps_fence_local[i][1] - diraction_k*gps_fence_local[i][0] > 0)
-            maxd_left = (maxd_left > dist_temp) ? maxd_left : dist_temp;
-        else  maxd_right = (maxd_right > dist_temp) ? maxd_right : dist_temp;
+        {
+            maxd_up = (maxd_up > dist_temp) ? maxd_up : dist_temp;
+            mind_up = (mind_up < dist_temp) ? mind_up : dist_temp;
+            up_bool = true;
+        }
+        else
+        {
+            maxd_down = (maxd_down > dist_temp) ? maxd_down : dist_temp;
+            mind_down = (mind_down < dist_temp) ? mind_down :dist_temp;
+            down_bool = true;
+        }
+
     }
-    float d_total = maxd_left + maxd_right;
+    // 4 cases
+    if(up_bool && down_bool) d_total = maxd_up + maxd_down;
+    else if(up_bool) d_total = maxd_up - mind_up;
+    else if(down_bool) d_total = maxd_down - mind_down;
+    else d_total = 0.0;
+
     float times =  d_total / IDEAL_SPRAY_WIDTH;
 
     if(fabs(d_total/((int)times)-3.0) < fabs(d_total/((int)(times+1))-3.0))
@@ -354,8 +373,10 @@ void MainWindow::turn_point_cal()
     cout<<"dist_between_lines "<<dist_between_lines<<endl;
 
     //2.calculate delt b in lines y=kx+b
-    float delt_b = dist_between_lines / sqrt(1/(diraction_k*diraction_k+1));
+    float cos_k = sqrt(1/(diraction_k*diraction_k+1));
+    float delt_b = dist_between_lines / cos_k;
     cout<<"delt_b "<<delt_b<<endl;
+    //float b_up =
 
     //3.calculate cross point
 
