@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
-#include <QFileDialog>
+
 
 using namespace std;
 
@@ -25,6 +25,9 @@ MainWindow::MainWindow(QWidget *parent) :
     gps_num_cp2 = 0;
     gps_num_cp3 = 0;
 
+    diraction_p_num = 0;
+    diraction_k = 0.0;
+
     list_seq = 0;
     list_seq_cp1 = 0;
     list_seq_cp2 = 0;
@@ -32,6 +35,12 @@ MainWindow::MainWindow(QWidget *parent) :
 
     home_lat = 31.027505;
     home_lon = 121.443987;
+
+    dist_between_lines = IDEAL_SPRAY_WIDTH;
+
+    //set cout precision
+    cout<<fixed;
+    cout.precision(8);
 }
 
 MainWindow::~MainWindow()
@@ -39,76 +48,82 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_pushButton_clicked()
+void MainWindow::on_pushButton_clicked() //open fence file
 {
-  //set cout precision
-  cout<<fixed;
-  cout.precision(8);
+    //open a file using QFileDialog
+    QString fileName = QFileDialog::getOpenFileName(this, tr("open file"), "/home",  tr("track(*.gpx)"));
 
-  //open a file using QFileDialog
-  QString fileName = QFileDialog::getOpenFileName(this, tr("open file"), "/home",  tr("track(*.gpx)"));
+    if(fileName.length()!=0) //if a file choosed
+    {
+        fstream gps_f;
+        char *path = fileName.toLatin1().data();
+        gps_f.open(path,ios::in);
 
-  if(fileName.length()!=0) //if a file choosed
-  {
-      fstream gps_f;
-      char *path = fileName.toLatin1().data();
-      gps_f.open(path,ios::in);
+        gps_num = 0; //initialize
+        while(!gps_f.eof()){   //while not the end of file
+            char str[300];
+            gps_f >> str;
+            //cout<<endl<<str;
 
-      gps_num = 0; //initialize
-      while(!gps_f.eof()){   //while not the end of file
-          char str[300];
-          gps_f >> str;
-          //cout<<endl<<str;
+            if(str[0]=='l'&&str[1]=='a'&&str[2]=='t') //lattitude
+            {
+                double lat=0.0;
+                int point_p=8;
 
-          if(str[0]=='l'&&str[1]=='a'&&str[2]=='t') //lattitude
-          {
-              double lat=0.0;
-              int point_p=8;
+                for(int i=5;str[i]!='"';i++) //find '.' first
+                    if(str[i]=='.') point_p=i;
 
-              for(int i=5;str[i]!='"';i++) //find '.' first
-                  if(str[i]=='.') point_p=i;
+                for(int m=point_p-1;str[m]!='"';m--) //integer
+                    lat += (double)(str[m]-'0')*pow(10,(point_p-1-m));
 
-              for(int m=point_p-1;str[m]!='"';m--) //integer
-                  lat += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+                for(int n=point_p+1;str[n]!='"';n++) //fractional
+                    lat += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+                cout<<endl<<"lat:"<<lat;
+                gps_fence[gps_num][0]=lat;//save
+            }
 
-              for(int n=point_p+1;str[n]!='"';n++) //fractional
-                  lat += ((double)(str[n]-'0'))/pow(10,(n-point_p));
-              cout<<endl<<"lat:"<<lat;
-              gps_fence[gps_num][0]=lat;//save
-          }
+            if(str[0]=='l'&&str[1]=='o'&&str[2]=='n') //longitude
+            {
+                double lon=0.0;
+                int point_p=8;
 
-          if(str[0]=='l'&&str[1]=='o'&&str[2]=='n') //longitude
-          {
-              double lon=0.0;
-              int point_p=8;
+                for(int i=5;str[i]!='"';i++) //find '.' first
+                    if(str[i]=='.') point_p=i;
 
-              for(int i=5;str[i]!='"';i++) //find '.' first
-                  if(str[i]=='.') point_p=i;
+                for(int m=point_p-1;str[m]!='"';m--) //integer
+                    lon += (double)(str[m]-'0')*pow(10,(point_p-1-m));
 
-              for(int m=point_p-1;str[m]!='"';m--) //integer
-                  lon += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+                for(int n=point_p+1;str[n]!='"';n++) //fractional
+                    lon += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+                cout<<endl<<"lon:"<<lon;
+                gps_fence[gps_num][1]=lon;//save
+                gps_fence[gps_num][2]=gps_num;
+                gps_num++;//counter for next point
+            }
+        }
+        gps_num -= 1; //correct num
+        gps_f.close(); //reading finished
 
-              for(int n=point_p+1;str[n]!='"';n++) //fractional
-                  lon += ((double)(str[n]-'0'))/pow(10,(n-point_p));
-              cout<<endl<<"lon:"<<lon;
-              gps_fence[gps_num][1]=lon;//save
-              gps_fence[gps_num][2]=gps_num;
-              gps_num++;//counter for next point
-          }
-      }
-      gps_num -= 1; //correct num
-      gps_f.close(); //reading finished
-      //add items
-      for(int i=1;i<=gps_num+1;i++)
-      {
-          char name[10]="Point";
-          char num[4];
-          sprintf(num,"%d",i);
-          strcat(name,num);
-          ui->listWidget->addItem(new QListWidgetItem(QObject::tr(name)));
-      }
-      cout<<"$$"<<gps_fence[4][1];
-      draw_gps_fence();
+      //judge if gpx file can be used
+        if(gps_num < 3)
+        {
+            gps_fence[0][0] = 0.0;
+            QMessageBox message_box(QMessageBox::Warning,"警告","GPS点少于3个,请重新选择!", QMessageBox::Cancel, NULL);
+            message_box.exec();
+        }
+        else{
+            //add items
+            for(int i=1;i<=gps_num+1;i++)
+            {
+                char name[10]="Point";
+                char num[4];
+                sprintf(num,"%d",i);
+                strcat(name,num);
+                ui->listWidget->addItem(new QListWidgetItem(QObject::tr(name)));
+            }
+            cout<<"$$"<<gps_fence[4][1];
+            draw_gps_fence();
+        }
   }
 
 }
@@ -133,7 +148,7 @@ void MainWindow::draw_gps_fence()
 
     //draw lines
     QPainter painter;
-    QImage image("/home/chg/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
+    QImage image("/home/cc/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
     painter.begin(&image);
     painter.setPen(QPen(Qt::blue,4));
 
@@ -213,7 +228,7 @@ bool MainWindow::restore_point()
     return false;
 }
 
-void MainWindow::on_pushButton_2_clicked()
+void MainWindow::on_pushButton_2_clicked() //store and delete point
 {
     //store seq and item
     list_seq = ui->listWidget->currentRow();
@@ -228,7 +243,7 @@ void MainWindow::on_pushButton_2_clicked()
     draw_gps_fence();
 }
 
-void MainWindow::on_pushButton_3_clicked()
+void MainWindow::on_pushButton_3_clicked() //restore point
 {
     if(restore_point())
     {
@@ -279,6 +294,15 @@ void MainWindow::gps_to_local(double lat, double lon, float *x, float *y)
     //http://blog.sina.com.cn/s/blog_658a93570101hynw.html
 }
 
+void MainWindow::local_to_gps(float x, float y, double *lat, double *lon)
+{
+    double home_lat_rad = home_lat * DEG_TO_RAD;
+    double home_lon_rad = home_lon * DEG_TO_RAD;
+
+    *lat = (((double)x) / CONSTANTS_RADIUS_OF_EARTH + home_lat_rad) * RAD_TO_DEG;
+    *lon = (home_lon_rad - ((double)y) / (CONSTANTS_RADIUS_OF_EARTH * cos(x/2.0/CONSTANTS_RADIUS_OF_EARTH + home_lat_rad))) * RAD_TO_DEG;
+}
+
 void MainWindow::turn_point_cal()
 {
     //calculate fence local position
@@ -291,31 +315,153 @@ void MainWindow::turn_point_cal()
         }
     }
     //calculate lines, form: y=kx+b
-    float paras[gps_num+1][4]; //(k,b,x1,x2)
+    float line_paras[gps_num+1][4]; //(k,b,x1,x2), para[0] is for the line between Point0 and Point1
     for(int i=0;i<=gps_num;i++)
     {
         if(i==gps_num)
         {
-            paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[0][1])/(gps_fence_local[i][0]-gps_fence_local[0][0]);
-            paras[i][1] = gps_fence_local[i][1]-paras[i][0]*gps_fence_local[i][0];
-            paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
-            paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
+            line_paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[0][1])/(gps_fence_local[i][0]-gps_fence_local[0][0]);
+            line_paras[i][1] = gps_fence_local[i][1]-line_paras[i][0]*gps_fence_local[i][0];
+            line_paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
+            line_paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[0][0]) ? gps_fence_local[i][0] : gps_fence_local[0][0];
         }
         else
         {
-            paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[i+1][1])/(gps_fence_local[i][0]-gps_fence_local[i+1][0]);
-            paras[i][1] = gps_fence_local[i][1]-paras[i][0]*gps_fence_local[i][0];
-            paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
-            paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
+            line_paras[i][0] = (gps_fence_local[i][1]-gps_fence_local[i+1][1])/(gps_fence_local[i][0]-gps_fence_local[i+1][0]);
+            line_paras[i][1] = gps_fence_local[i][1]-line_paras[i][0]*gps_fence_local[i][0];
+            line_paras[i][2] = (gps_fence_local[i][0] < gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
+            line_paras[i][3] = (gps_fence_local[i][0] > gps_fence_local[i+1][0]) ? gps_fence_local[i][0] : gps_fence_local[i+1][0];
         }
     }
-    //calculate turning points
+    /*calculate turning points*/
+    //1.calculate proper distance between lines
+    float maxd_left = 0.0, maxd_right = 0.0;
+    for(int i=0;i<=gps_num;i++)
+    {
+        float dist_temp = point_line_dist(gps_fence_local[i][0],gps_fence_local[i][1],diraction_k,0.0);
+        //judge if point is on leftside or rightside of line y = direction_k*x
+        if(gps_fence_local[i][1] - diraction_k*gps_fence_local[i][0] > 0)
+            maxd_left = (maxd_left > dist_temp) ? maxd_left : dist_temp;
+        else  maxd_right = (maxd_right > dist_temp) ? maxd_right : dist_temp;
+    }
+    float d_total = maxd_left + maxd_right;
+    float times =  d_total / IDEAL_SPRAY_WIDTH;
+
+    if(fabs(d_total/((int)times)-3.0) < fabs(d_total/((int)(times+1))-3.0))
+        dist_between_lines = d_total/((int)times);
+    else dist_between_lines = d_total/((int)(times+1));
+
+    cout<<"dist_between_lines "<<dist_between_lines<<endl;
+
+    //2.calculate delt b in lines y=kx+b
+    float delt_b = dist_between_lines / sqrt(1/(diraction_k*diraction_k+1));
+    cout<<"delt_b "<<delt_b<<endl;
+
+    //3.calculate cross point
+
 
 }
 
-void MainWindow::on_pushButton_4_clicked()
+void MainWindow::on_pushButton_4_clicked() //calculate turning points
 {
-    turn_point_cal();
+    if(diraction_k!=0.0 && gps_fence[0][0]!= 0) turn_point_cal(); //calculate
+    else if(gps_fence[0][0]==0) {
+        QMessageBox message_box(QMessageBox::Warning,"警告","GPS围栏未导入", QMessageBox::Cancel, NULL);
+        message_box.exec();
+    }
+    else if(diraction_k==0.0){
+        QMessageBox message_box(QMessageBox::Warning,"警告","GPS方向未导入", QMessageBox::Cancel, NULL);
+        message_box.exec();
+    }
 }
 
+float MainWindow::point_dist(float x1, float y1, float x2, float y2)
+{
+    return sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
+}
+
+float MainWindow::point_line_dist(float m, float n, float k, float b)
+{
+    return (fabs(k*m-n+b))/(sqrt(k*k+1));
+}
+
+void MainWindow::on_pushButton_5_clicked() //read diraction
+{
+    //open a file using QFileDialog
+    QString fileName = QFileDialog::getOpenFileName(this, tr("open file"), "/home",  tr("track(*.gpx)"));
+
+    if(fileName.length()!=0) //if a file choosed
+    {
+        fstream gps_d;
+        char *path = fileName.toLatin1().data();
+        gps_d.open(path,ios::in);
+
+        diraction_p_num = 0; //initialize
+        while(!gps_d.eof()){   //while not the end of file
+            char str[300];
+            gps_d >> str;
+            //cout<<endl<<str;
+
+            if(str[0]=='l'&&str[1]=='a'&&str[2]=='t') //lattitude
+            {
+                double lat=0.0;
+                int point_p=8;
+
+                for(int i=5;str[i]!='"';i++) //find '.' first
+                    if(str[i]=='.') point_p=i;
+
+                for(int m=point_p-1;str[m]!='"';m--) //integer
+                    lat += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+                for(int n=point_p+1;str[n]!='"';n++) //fractional
+                    lat += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+                cout<<endl<<"lat:"<<lat;
+                gps_diraction[diraction_p_num][0]=lat;//save
+            }
+
+            if(str[0]=='l'&&str[1]=='o'&&str[2]=='n') //longitude
+            {
+                double lon=0.0;
+                int point_p=8;
+
+                for(int i=5;str[i]!='"';i++) //find '.' first
+                    if(str[i]=='.') point_p=i;
+
+                for(int m=point_p-1;str[m]!='"';m--) //integer
+                    lon += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+                for(int n=point_p+1;str[n]!='"';n++) //fractional
+                    lon += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+                cout<<endl<<"lon:"<<lon;
+                gps_diraction[diraction_p_num][1]=lon;//save
+                diraction_p_num++;//counter for next point
+            }
+        }
+        diraction_p_num -= 1; //correct num
+        gps_d.close(); //reading finished
+
+        //judge if gpx file can be used
+        if(diraction_p_num < 2)
+        {
+            gps_diraction[0][0] = 0.0;
+            QMessageBox message_box(QMessageBox::Warning,"警告","GPS点少于2个,请重新选择!", QMessageBox::Cancel, NULL);
+            message_box.exec();
+        }
+        else
+        {
+            //calculate diraction k with the first and the last point
+            float first_px = 0.0;
+            float first_py = 0.0;
+            float last_px = 0.0;
+            float last_py = 0.0;
+            gps_to_local(gps_diraction[0][0],gps_diraction[0][1],&first_px,&first_py);
+            gps_to_local(gps_diraction[diraction_p_num][0],gps_diraction[diraction_p_num][1],&last_px,&last_py);
+            diraction_k = (last_py-first_py)/(last_px-first_px);
+
+            //information out ***
+            cout<<"diraction_k "<<diraction_k<<endl;
+        }
+
+    }
+}
 

@@ -14,11 +14,16 @@
 #define CONSTANTS_RADIUS_OF_EARTH 6371393
 
 #define MAX_POINT_NUM 1000
+#define MAX_DIRACTION_POINT_NUM 200
+
+#define IDEAL_SPRAY_WIDTH 3.0
 
 #include <QMainWindow>
 #include <QListWidgetItem>
 #include <QLabel>
 #include <QPainter>
+#include <QFileDialog>
+#include <QMessageBox>
 
 namespace Ui {
 class MainWindow;
@@ -41,6 +46,8 @@ private slots:
 
     void on_pushButton_3_clicked();
 
+    void on_pushButton_4_clicked();
+
     void delete_point(int x);
 
     bool restore_point();
@@ -49,9 +56,15 @@ private slots:
 
     void gps_to_local(double lat, double lon, float *x, float *y);
 
+    void local_to_gps(float x, float y, double *lat, double *lon);
+
     void turn_point_cal();
 
-    void on_pushButton_4_clicked();
+    float point_dist(float x1, float y1, float x2, float y2);
+
+    float point_line_dist(float m, float n, float k, float b);
+
+    void on_pushButton_5_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -61,20 +74,30 @@ private:
 
     QLabel *gps_fence_label;
 
-    double gps_fence[MAX_POINT_NUM][3];
+
+    //fence
+    double gps_fence[MAX_POINT_NUM][3]; //(lat, lon, initial_sequence)
     double gps_fence_cp1[MAX_POINT_NUM][3];
     double gps_fence_cp2[MAX_POINT_NUM][3];
     double gps_fence_cp3[MAX_POINT_NUM][3];
-
-
-    double home_lat;
-    double home_lon;
-
     int gps_num;//start from 0
     int gps_num_cp1;
     int gps_num_cp2;
     int gps_num_cp3;
 
+    //diraction
+    double gps_diraction[MAX_DIRACTION_POINT_NUM][2]; //(lat, lon)
+    float diraction_k;
+    int diraction_p_num;
+
+    //home position
+    double home_lat;
+    double home_lon;
+
+    //distance between lines
+    float dist_between_lines;
+
+    //item sequence for listwidget
     int list_seq;
     int list_seq_cp1;
     int list_seq_cp2;
