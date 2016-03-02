@@ -38,6 +38,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     dist_between_lines = IDEAL_SPRAY_WIDTH;
 
+    intersection_num = 0;
+
     //set cout precision
     cout<<fixed;
     cout.precision(8);
@@ -148,7 +150,7 @@ void MainWindow::draw_gps_fence()
 
     //draw lines
     QPainter painter;
-    QImage image("/home/cc/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
+    QImage image("/home/chg/catkin_ws/src/station/src/Icons/grass-720x540-2.png");//定义图片，并在图片上绘图方便显示
     painter.begin(&image);
     painter.setPen(QPen(Qt::blue,4));
 
@@ -176,6 +178,11 @@ void MainWindow::draw_gps_fence()
     painter.end();
     gps_fence_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
 
+}
+
+void MainWindow::draw_route()
+{
+    ;
 }
 
 void MainWindow::on_listWidget_itemClicked()
@@ -306,7 +313,7 @@ void MainWindow::local_to_gps(float x, float y, double *lat, double *lon)
 void MainWindow::turn_point_cal()
 {
     //calculate fence local position
-    float gps_fence_local[MAX_POINT_NUM][2];
+
     if(gps_fence[0][0]>0){
         for(int i=0;i<=gps_num;i++)
         {
@@ -334,51 +341,93 @@ void MainWindow::turn_point_cal()
         }
     }
     /*calculate turning points*/
-    //1.calculate proper distance between lines
+    //1.calculate proper y cross distance between lines
+    float cos_k = sqrt(1/(diraction_k*diraction_k+1));
 
-    float maxd_up = 0.0, maxd_down = 0.0, mind_up = 100000.0, mind_down = 100000.0;
-    bool up_bool = false, down_bool = false;
-    float d_total = 0.0;
+    float min_b = 100000.0, max_b = -100000.0;
 
     for(int i=0;i<=gps_num;i++)
     {
-        float dist_temp = point_line_dist(gps_fence_local[i][0],gps_fence_local[i][1],diraction_k,0.0);
-        //judge if point is on leftside or rightside of line y = direction_k*x
-        if(gps_fence_local[i][1] - diraction_k*gps_fence_local[i][0] > 0)
-        {
-            maxd_up = (maxd_up > dist_temp) ? maxd_up : dist_temp;
-            mind_up = (mind_up < dist_temp) ? mind_up : dist_temp;
-            up_bool = true;
-        }
-        else
-        {
-            maxd_down = (maxd_down > dist_temp) ? maxd_down : dist_temp;
-            mind_down = (mind_down < dist_temp) ? mind_down :dist_temp;
-            down_bool = true;
-        }
-
+        float b_temp = gps_fence_local[i][1] - diraction_k*gps_fence_local[i][0];
+        min_b = (min_b > b_temp) ? b_temp : min_b;
+        max_b = (max_b < b_temp) ? b_temp : max_b;
     }
-    // 4 cases
-    if(up_bool && down_bool) d_total = maxd_up + maxd_down;
-    else if(up_bool) d_total = maxd_up - mind_up;
-    else if(down_bool) d_total = maxd_down - mind_down;
-    else d_total = 0.0;
 
-    float times =  d_total / IDEAL_SPRAY_WIDTH;
+    float delt_b_ideal = fabs(IDEAL_SPRAY_WIDTH / cos_k); //positive
 
-    if(fabs(d_total/((int)times)-3.0) < fabs(d_total/((int)(times+1))-3.0))
-        dist_between_lines = d_total/((int)times);
-    else dist_between_lines = d_total/((int)(times+1));
+    float b_distance = max_b - min_b;
+    float times_f = b_distance / delt_b_ideal;
+    float delt_b = 0.0;
+    int times = 0;
 
-    cout<<"dist_between_lines "<<dist_between_lines<<endl;
+    if(fabs(b_distance/((int)times_f)-IDEAL_SPRAY_WIDTH) < fabs(b_distance/((int)(times_f+1))-IDEAL_SPRAY_WIDTH))
+    {
+        times = (int)times_f;
+        delt_b = b_distance/times;
+    }
+    else {
+        times = (int)(times_f+1);
+        delt_b = b_distance/times;
+    }
+    cout<<"delt_b="<<delt_b<<endl;
 
-    //2.calculate delt b in lines y=kx+b
-    float cos_k = sqrt(1/(diraction_k*diraction_k+1));
-    float delt_b = dist_between_lines / cos_k;
-    cout<<"delt_b "<<delt_b<<endl;
-    //float b_up =
+    dist_between_lines = delt_b * cos_k;
+    cout<<"dist_between_lines="<<dist_between_lines<<endl;
 
-    //3.calculate cross point
+    //2.calculate local intersection point
+    float b_start = min_b + delt_b/2;
+    for(int i=0;i<times;i++)
+    {
+        float intersection_temp[20][2]; //set 20 intersection points max for a line
+        int intersection_num_temp = 0;
+        //calculate
+        for(int j=0;j<=gps_num;j++)
+        {
+            float x = (b_start - line_paras[j][1]) / (line_paras[j][0] - diraction_k);
+            if(x>line_paras[j][2] && x<line_paras[j][3])
+            {
+                intersection_temp[intersection_num_temp][0] = x;
+                intersection_temp[intersection_num_temp][1] = diraction_k * x + b_start;
+                intersection_num_temp ++;
+            }
+        }
+        intersection_num_temp --;
+
+        //arrange intersection points sequence by value of x from small to large (point(x,y))
+        float ex_x = 0.0, ex_y = 0.0;
+        for(int m=0;m<=intersection_num_temp;m++)
+        {
+            for(int n=m+1;n<=intersection_num_temp;n++)
+            {
+                if(intersection_temp[m][0] > intersection_temp[n][0])
+                {
+                    ex_x = intersection_temp[m][0];
+                    ex_y = intersection_temp[m][1];
+                    intersection_temp[m][0] = intersection_temp[n][0];
+                    intersection_temp[m][1] = intersection_temp[n][1];
+                    intersection_temp[n][0] = ex_x;
+                    intersection_temp[n][1] = ex_y;
+                }
+            }
+        }
+        //store the first and the last intersection point a line
+        intersection_p_local[intersection_num][0] = intersection_temp[0][0];
+        intersection_p_local[intersection_num][1] = intersection_temp[0][1];
+        intersection_p_local[intersection_num+1][0] = intersection_temp[intersection_num_temp][0];
+        intersection_p_local[intersection_num+1][1] = intersection_temp[intersection_num_temp][1];
+        intersection_num += 2;
+
+        b_start += delt_b;
+    }
+    intersection_num -= 2; //correct intersection_num
+
+    //3.translate to global coordnate, for flying back to break point
+    for(int y=0;y<=intersection_num;y++)
+    {
+        local_to_gps(intersection_p_local[y][0],intersection_p_local[y][1],&intersection_p_gps[y][0],&intersection_p_gps[y][1]);
+    }
+
+    //4.arrange the best route points sequence according to home position
 
 
 }

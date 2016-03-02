@@ -54,6 +54,8 @@ private slots:
 
     void draw_gps_fence();
 
+    void draw_route();
+
     void gps_to_local(double lat, double lon, float *x, float *y);
 
     void local_to_gps(float x, float y, double *lat, double *lon);
@@ -84,6 +86,7 @@ private:
     int gps_num_cp1;
     int gps_num_cp2;
     int gps_num_cp3;
+    float gps_fence_local[MAX_POINT_NUM][2];
 
     //diraction
     double gps_diraction[MAX_DIRACTION_POINT_NUM][2]; //(lat, lon)
@@ -96,6 +99,11 @@ private:
 
     //distance between lines
     float dist_between_lines;
+
+    //intersection points, local
+    float intersection_p_local[MAX_POINT_NUM][2];
+    double intersection_p_gps[MAX_POINT_NUM][2];
+    int intersection_num;
 
     //item sequence for listwidget
     int list_seq;

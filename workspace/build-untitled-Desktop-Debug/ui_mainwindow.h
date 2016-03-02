@@ -35,6 +35,7 @@ public:
     QPushButton *pushButton_2;
     QPushButton *pushButton_3;
     QPushButton *pushButton_4;
+    QPushButton *pushButton_5;
     QMenuBar *menuBar;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
@@ -48,7 +49,7 @@ public:
         centralWidget->setObjectName(QString::fromUtf8("centralWidget"));
         pushButton = new QPushButton(centralWidget);
         pushButton->setObjectName(QString::fromUtf8("pushButton"));
-        pushButton->setGeometry(QRect(740, 40, 99, 27));
+        pushButton->setGeometry(QRect(750, 0, 131, 27));
         frame = new QFrame(centralWidget);
         frame->setObjectName(QString::fromUtf8("frame"));
         frame->setGeometry(QRect(10, 10, 720, 540));
@@ -68,6 +69,9 @@ public:
         pushButton_4 = new QPushButton(centralWidget);
         pushButton_4->setObjectName(QString::fromUtf8("pushButton_4"));
         pushButton_4->setGeometry(QRect(760, 350, 99, 27));
+        pushButton_5 = new QPushButton(centralWidget);
+        pushButton_5->setObjectName(QString::fromUtf8("pushButton_5"));
+        pushButton_5->setGeometry(QRect(750, 40, 131, 27));
         MainWindow->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(MainWindow);
         menuBar->setObjectName(QString::fromUtf8("menuBar"));
@@ -88,10 +92,11 @@ public:
     void retranslateUi(QMainWindow *MainWindow)
     {
         MainWindow->setWindowTitle(QApplication::translate("MainWindow", "MainWindow", 0, QApplication::UnicodeUTF8));
-        pushButton->setText(QApplication::translate("MainWindow", "open", 0, QApplication::UnicodeUTF8));
+        pushButton->setText(QApplication::translate("MainWindow", "open fence", 0, QApplication::UnicodeUTF8));
         pushButton_2->setText(QApplication::translate("MainWindow", "delete", 0, QApplication::UnicodeUTF8));
         pushButton_3->setText(QApplication::translate("MainWindow", "restore", 0, QApplication::UnicodeUTF8));
         pushButton_4->setText(QApplication::translate("MainWindow", "OK", 0, QApplication::UnicodeUTF8));
+        pushButton_5->setText(QApplication::translate("MainWindow", "open diraction", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };
