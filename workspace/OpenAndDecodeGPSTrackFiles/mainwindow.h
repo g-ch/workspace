@@ -1,8 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#define FENCE_AREA_LEN 720
-#define FENCE_AREA_HEI 540
+#define NORTHERN_HEMISPHERE 1
+#define EASTERN_HEMISPHERE 1
+
+#define ROUTE_DRAW_AREA_WIDTH 720
+#define ROUTE_DRAW_AREA_HEIGHT 540
 
 #define DEG_TO_RAD 	0.01745329251994
 #define RAD_TO_DEG 	57.2957795130823
@@ -17,6 +20,7 @@
 #define MAX_DIRACTION_POINT_NUM 200
 
 #define IDEAL_SPRAY_WIDTH 3.0
+#define IDEAL_SPRAY_LENTH 1.6
 
 #include <QMainWindow>
 #include <QListWidgetItem>
@@ -77,7 +81,7 @@ private:
     QLabel *gps_fence_label;
 
 
-    //fence
+    /*fence*/
     double gps_fence[MAX_POINT_NUM][3]; //(lat, lon, initial_sequence)
     double gps_fence_cp1[MAX_POINT_NUM][3];
     double gps_fence_cp2[MAX_POINT_NUM][3];
@@ -86,26 +90,31 @@ private:
     int gps_num_cp1;
     int gps_num_cp2;
     int gps_num_cp3;
-    float gps_fence_local[MAX_POINT_NUM][2];
+    float gps_fence_local[MAX_POINT_NUM][2]; //local: East->x, North->y
 
-    //diraction
+    /*diraction*/
     double gps_diraction[MAX_DIRACTION_POINT_NUM][2]; //(lat, lon)
     float diraction_k;
     int diraction_p_num;
 
-    //home position
+    /*home position*/
     double home_lat;
     double home_lon;
 
-    //distance between lines
+    /*distance between lines*/
     float dist_between_lines;
 
-    //intersection points, local
+    /*intersection points, local*/
     float intersection_p_local[MAX_POINT_NUM][2];
-    double intersection_p_gps[MAX_POINT_NUM][2];
+    float route_p_local[MAX_POINT_NUM][2];//local: East->x, North->y
+    double route_p_gps[MAX_POINT_NUM][2];
     int intersection_num;
 
-    //item sequence for listwidget
+    /*route offset*/
+    float offset_angle_d;
+    float offset_dist_m;
+
+    /*item sequence for listwidget*/
     int list_seq;
     int list_seq_cp1;
     int list_seq_cp2;
