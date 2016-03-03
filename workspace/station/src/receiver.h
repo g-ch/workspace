@@ -16,14 +16,6 @@ struct Imu_Data
 {
 };
 
-struct Field_Size_Confirm
-{
-    float length;
-    float width;
-    float height;
-    int times;
-    int confirm;
-};
 struct Pump
 {
     float pump_speed_sp;
@@ -100,13 +92,6 @@ struct Optical_Flow
     double quality;
 };
 
-struct Field_Size
-{
-    float length;
-    float width;
-    float height;
-    int times;
-};
 
 class MavrosMessage : public QThread
 {
@@ -126,8 +111,7 @@ public:
     double time_fromboost;
     struct Wind_Speed wind_speed;
     struct Optical_Flow optical_flow;
-    struct Field_Size field_size;
-    struct Field_Size_Confirm field_size_confirm;
+
     struct Pump pump;
     int success_counter;
 

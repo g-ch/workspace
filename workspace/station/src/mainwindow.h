@@ -7,6 +7,7 @@
 #include <string>
 #include <QListWidgetItem>
 #include <iostream>
+#include <fstream>
 #include "painterWiget.h"
 #include <QTime>
 #include <QTimer>
@@ -14,8 +15,42 @@
 #include <QWheelEvent>
 #include <QMouseEvent>
 #include <QKeyEvent>
+#include <QListWidgetItem>
+#include <QLabel>
+#include <QFileDialog>
+#include <QPainter>
+#include <math.h>
+#include <QBitmap>
+#include <QPainter>
+#include <QMessageBox>
+
+#define FLY_POSITION_LABEL_WIDTH 720
+#define FLY_POSITION_LABEL_HEIGHT 540
+#define FLY_ROUTE_LABEL_WIDTH 720
+#define FLY_ROUTE_LABEL_HEIGHT 540
 
 #define SUCCESS_COUNTER_INIT 100
+
+#define NORTHERN_HEMISPHERE 1
+#define EASTERN_HEMISPHERE 1
+
+#define ROUTE_DRAW_AREA_WIDTH 720
+#define ROUTE_DRAW_AREA_HEIGHT 540
+
+#define DEG_TO_RAD 	0.01745329251994
+#define RAD_TO_DEG 	57.2957795130823
+
+#define PI 3.14159265358979323846
+#define PI_2 1.57079632679489661923
+
+#define DBL_EPSILON 2.2204460492503131e-16
+#define CONSTANTS_RADIUS_OF_EARTH 6371393
+
+#define MAX_POINT_NUM 1000
+#define MAX_DIRACTION_POINT_NUM 200
+
+#define IDEAL_SPRAY_WIDTH 3.0
+#define IDEAL_SPRAY_LENTH 1.8
 
 using namespace std;
 
@@ -39,6 +74,8 @@ protected:
     void get_Painter_Address(StatusPainter *painter);//用于画图传参的函数
 
 private slots:
+    void init_paras();
+
     void state_Mode_Slot();//模式控制显示
     void battey_Slot();//电量显示
     void radio_Status_Slot();//信号强度显示
@@ -55,23 +92,37 @@ private slots:
     void pump_Status_Slot();
     void timer_Slot();
 
-
     //void on_comboBox_Num_currentIndexChanged(int index);
 
     void time_Update();
 
     void on_pushButton_Reset_FlyingTime_clicked();
-
     void on_pushButton_Route_Send_clicked();
-
     void on_pushButton_Route_Generate_clicked();
-
     void on_pushButton_Route_Reset_clicked();
-
     void on_pushButton_OFFBOARD_Imitate_clicked();
 
-
+    void on_pushButton_Open_Fence_clicked();
+    void on_pushButton_Open_Diraction_clicked();
+    void on_pushButton_Delete_Point_clicked();
+    void on_pushButton_Restore_Point_clicked();
+    void on_listWidget_GPS_Point_itemClicked();
     void on_horizontalSlider_Spray_actionTriggered(int action);
+
+    void delete_point(int x);
+    bool restore_point();
+    void draw_gps_fence();
+    void draw_route(int window); //window 0: draw in planning window 1: draw in flying window
+
+    void gps_to_local(double lat, double lon, float *x, float *y);
+    void local_to_gps(float x, float y, double *lat, double *lon);
+    float point_dist(float x1, float y1, float x2, float y2);
+    float point_line_dist(float m, float n, float k, float b);
+
+    void turn_point_cal();
+
+
+    void on_dial_Offset_Angle_valueChanged(int value);
 
 private:
     Ui::MainWindow *ui;
@@ -79,6 +130,78 @@ private:
     QImage image_resize;
 
     QPoint mouse_pos;
+
+    QListWidgetItem *item_cp1;
+    QListWidgetItem *item_cp2;
+    QListWidgetItem *item_cp3;
+
+    QLabel *fly_position_label;
+    QLabel *fly_route_label;
+
+
+    /*fence*/
+    double gps_fence[MAX_POINT_NUM][3]; //(lat, lon, initial_sequence)
+    double gps_fence_cp1[MAX_POINT_NUM][3];
+    double gps_fence_cp2[MAX_POINT_NUM][3];
+    double gps_fence_cp3[MAX_POINT_NUM][3];
+    int gps_num;//start from 0
+    int gps_num_cp1;
+    int gps_num_cp2;
+    int gps_num_cp3;
+    float gps_fence_local[MAX_POINT_NUM][2]; //local: East->x, North->y
+
+    /*diraction*/
+    double gps_diraction[MAX_DIRACTION_POINT_NUM][2]; //(lat, lon)
+    float diraction_k;
+    int diraction_p_num;
+
+    /*home position*/
+    double home_lat;
+    double home_lon;
+
+    /*distance between lines*/
+    float dist_between_lines;
+
+    /*intersection points, local*/
+    float intersection_p_local[MAX_POINT_NUM][2];
+    float route_p_local[MAX_POINT_NUM][2];//local: East->x, North->y
+    double route_p_gps[MAX_POINT_NUM][2];
+    int intersection_num;
+
+    /*route offset*/
+    float offset_angle_d;
+    float offset_dist_m;
+
+    /*item sequence for listwidget*/
+    int list_seq;
+    int list_seq_cp1;
+    int list_seq_cp2;
+    int list_seq_cp3;
+
+    /*others*/
+    int success_counter;
+
+    int controller_flag;
+    int computer_flag;
+    int controller_flag_last;
+    int computer_flag_last;
+
+    double orientation_last;
+
+    bool bool_flying;
+
+
+    int flying_time;
+    unsigned int flying_status_counter;
+    unsigned int flying_status_counter_last;
+
+    //以下变量用于画路径图
+    float paint_scale ;
+    float real_position[3600][2];
+    int position_num;
+    int save_counter;
+
+    float fly_distance;
 
 };
 

@@ -53,16 +53,11 @@ void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg);
 void chatterCallback_Imu_Data(const sensor_msgs::Imu &msg);
 void chatterCallback_GlobalPosition_GpVel(const geometry_msgs::TwistStamped &msg);
 void chatterCallback_Optical_Flow(const mavros_extras::OpticalFlowRad &msg);
-void chatterCallback_Field_Size_Confirm(const mavros_extras::FieldSizeConfirm &msg);
 void chatterCallback_Pump_Status(const mavros_extras::PumpStatus &msg);
 
 void MavrosMessage::run()
 {
     //initialize values
-    message.field_size.height = 5.0;
-    message.field_size.length = 0.0;
-    message.field_size.width = 0.0;
-    message.field_size.times = 0;
 
     size_msg.height = 5.0;
     size_msg.length = 0.0;
@@ -88,7 +83,7 @@ void MavrosMessage::run()
     ros::Subscriber sub13 =n.subscribe("/mavros/sonar_receiver/sonar_receiver",500,chatterCallback_Sonar);
     ros::Subscriber sub14 =n.subscribe("/mavros/laser_receiver/laser_receiver",500,chatterCallback_Laser);
     ros::Subscriber sub15 =n.subscribe("/mavros/local_position/local_velocity",500,chatterCallback_local_velocity);
-    ros::Subscriber sub16 = n.subscribe("/mavros/field_size_confirm_receiver/field_size_confirm_receiver", 200,chatterCallback_Field_Size_Confirm);
+
     ros::Subscriber sub17 = n.subscribe("/mavros/pump_status/pump_status", 200,chatterCallback_Pump_Status);
 
     //Publish Topic
@@ -110,16 +105,16 @@ void MavrosMessage::run()
 
         if(send_button_pressed)
         {   
-            size_msg.length = message.field_size.length;
-            size_msg.width = message.field_size.width;
-            size_msg.height = message.field_size.height;
-            size_msg.times = message.field_size.times;
+            //size_msg.length = message.field_size.length;
+            //size_msg.width = message.field_size.width;
+            //size_msg.height = message.field_size.height;
+            //size_msg.times = message.field_size.times;
 
             send_ok = false;
             ros::Rate send_loop_rate(10);
             int counter = 0;
 
-            while (ros::ok()&& !send_ok)
+            /*while (ros::ok()&& !send_ok)
             {
               field_size_pub.publish(size_msg);
               counter ++;
@@ -135,7 +130,7 @@ void MavrosMessage::run()
              message.success_counter += 1;
              send_button_pressed = false;
 
-            message.msg_Send_Offboard_Set();
+            message.msg_Send_Offboard_Set();*/
         }
 
         ros::spinOnce();
@@ -283,7 +278,7 @@ void chatterCallback_local_velocity(const geometry_msgs::Vector3 &msg)
     message.msg_Send_Orientation();
 }
 
-void chatterCallback_Field_Size_Confirm(const mavros_extras::FieldSizeConfirm &msg)
+/*void chatterCallback_Field_Size_Confirm(const mavros_extras::FieldSizeConfirm &msg)
 {
   if(f_equal(msg.length,size_msg.length)&&f_equal(msg.width,size_msg.width)&&f_equal(msg.height,size_msg.height)&&msg.times==size_msg.times)
     send_ok = true;
@@ -294,7 +289,7 @@ void chatterCallback_Field_Size_Confirm(const mavros_extras::FieldSizeConfirm &m
   message.field_size_confirm.times=msg.times;
   message.field_size_confirm.confirm=msg.confirm;
   message.msg_Send_Field_Size_Confirm();
-}
+}*/
 
 bool f_equal(float x, float y)
 {

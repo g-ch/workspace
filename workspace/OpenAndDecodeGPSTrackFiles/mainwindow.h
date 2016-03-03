@@ -20,7 +20,7 @@
 #define MAX_DIRACTION_POINT_NUM 200
 
 #define IDEAL_SPRAY_WIDTH 3.0
-#define IDEAL_SPRAY_LENTH 1.6
+#define IDEAL_SPRAY_LENTH 1.8
 
 #include <QMainWindow>
 #include <QListWidgetItem>
