@@ -98,7 +98,7 @@ private slots:
 
     void on_pushButton_Reset_FlyingTime_clicked();
     void on_pushButton_Route_Send_clicked();
-    void on_pushButton_Route_Generate_clicked();
+    int on_pushButton_Route_Generate_clicked();
     void on_pushButton_Route_Reset_clicked();
     void on_pushButton_OFFBOARD_Imitate_clicked();
 

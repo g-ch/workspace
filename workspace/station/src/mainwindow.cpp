@@ -362,6 +362,7 @@ void MainWindow::timer_Slot()
     controller_flag_last=controller_flag;
     computer_flag_last=computer_flag;
 }
+
 void MainWindow::on_pushButton_Reset_FlyingTime_clicked()
 {
     flying_time=0;
@@ -369,25 +370,62 @@ void MainWindow::on_pushButton_Reset_FlyingTime_clicked()
 }
 
 
-void MainWindow::on_pushButton_Route_Generate_clicked()
+int MainWindow::on_pushButton_Route_Generate_clicked()
 {
-    //判断是否所有值都写好
-    if(diraction_k!=0.0 && gps_fence[0][0]!= 0)
+    if(home_lat == 0)
     {
-        offset_dist_m = ui->lineEdit_Offset_Dist->text().toFloat();
-        turn_point_cal(); //calculate
-    }
-    else if(gps_fence[0][0]==0) {
-        QMessageBox message_box(QMessageBox::Warning,"警告","GPS围栏未导入", QMessageBox::Cancel, NULL);
+        QMessageBox message_box(QMessageBox::Warning,"警告","未连接到飞机或无GPS信号", QMessageBox::Cancel, NULL);
         message_box.exec();
+        return 1;
     }
-    else if(diraction_k==0.0){
-        QMessageBox message_box(QMessageBox::Warning,"警告","GPS方向未导入", QMessageBox::Cancel, NULL);
-        message_box.exec();
+    else
+    {
+        //判断是否所有值都写好
+        if(diraction_k!=0.0 && gps_fence[0][0]!= 0)
+        {
+            //if distance from home to first gps fence point is too long, reject
+            float gps_fence_local_x;
+            float gps_fence_local_y;
+            gps_to_local(gps_fence[0][0], gps_fence[0][1], &gps_fence_local_x, &gps_fence_local_y);
+
+            //if distance from home to first diraction point is too long, reject
+            float diraction_local_x;
+            float diraction_local_y;
+            gps_to_local(gps_diraction[0][0], gps_diraction[0][1], &diraction_local_x, &diraction_local_y);
+
+            if(point_dist(0.0, 0.0, gps_fence_local_x, gps_fence_local_y) > 5000)
+            {
+                QMessageBox message_box(QMessageBox::Warning,"警告","GPS围栏距离太远(>5km)", QMessageBox::Cancel, NULL);
+                message_box.exec();
+                return 2;
+            }
+            else if(point_dist(0.0, 0.0, diraction_local_x, diraction_local_y)>5000)
+            {
+                QMessageBox message_box(QMessageBox::Warning,"警告","GPS方向点距离太远(>5km)", QMessageBox::Cancel, NULL);
+                message_box.exec();
+                return 3;
+            }
+            else
+            {
+                offset_dist_m = ui->lineEdit_Offset_Dist->text().toFloat();
+                turn_point_cal(); //calculate
+            }
+
+        }
+        else if(gps_fence[0][0]==0) {
+            QMessageBox message_box(QMessageBox::Warning,"警告","GPS围栏未导入", QMessageBox::Cancel, NULL);
+            message_box.exec();
+        }
+        else if(diraction_k==0.0){
+            QMessageBox message_box(QMessageBox::Warning,"警告","GPS方向未导入", QMessageBox::Cancel, NULL);
+            message_box.exec();
+        }
     }
+
 
     ui->textBrowser_Offboard_Message->append("生成成功！");
     ui->pushButton_Route_Send->setEnabled(true);
+    return 0;
 }
 
 

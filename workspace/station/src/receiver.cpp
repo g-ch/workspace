@@ -21,8 +21,7 @@
 #include "ros/time.h"
 #include <mavros_extras/SonarDistance.h>
 #include <mavros_extras/LaserDistance.h>
-#include <mavros_extras/FieldSize.h>
-#include <mavros_extras/FieldSizeConfirm.h>
+
 #include <mavros_extras/PumpStatus.h>
 #include <mavros_extras/PumpController.h>
 #include <sstream>
@@ -32,7 +31,6 @@
 
 extern MavrosMessage message;
 extern bool send_button_pressed;
-mavros_extras::FieldSize size_msg;
 mavros_extras::PumpController pump_msg;
 
 bool f_equal(float x, float y);
@@ -59,10 +57,10 @@ void MavrosMessage::run()
 {
     //initialize values
 
-    size_msg.height = 5.0;
-    size_msg.length = 0.0;
-    size_msg.width = 0.0;
-    size_msg.times = 0;
+    //size_msg.height = 5.0;
+    //size_msg.length = 0.0;
+    //size_msg.width = 0.0;
+    //size_msg.times = 0;
 
     message.success_counter = SUCCESS_COUNTER_INIT;
 
@@ -87,7 +85,7 @@ void MavrosMessage::run()
     ros::Subscriber sub17 = n.subscribe("/mavros/pump_status/pump_status", 200,chatterCallback_Pump_Status);
 
     //Publish Topic
-    ros::Publisher field_size_pub = n.advertise<mavros_extras::FieldSize>("field_size_set", 500);
+    //ros::Publisher field_size_pub = n.advertise<mavros_extras::FieldSize>("field_size_set", 500);
     ros::Publisher pump_controller_pub = n.advertise<mavros_extras::PumpController>("pump_controller",500);
 
     ros::Rate check_loop_rate(1);
