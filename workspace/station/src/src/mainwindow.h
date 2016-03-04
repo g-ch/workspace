@@ -49,8 +49,6 @@
 #define MAX_POINT_NUM 1000
 #define MAX_DIRACTION_POINT_NUM 200
 
-#define IDEAL_SPRAY_WIDTH 3.0
-#define IDEAL_SPRAY_LENTH 1.8
 
 using namespace std;
 
@@ -87,8 +85,7 @@ private slots:
     void optical_Flow_Slot();//光流显示
     void temperature_Slot();//温度显示
     void time_Slot();//飞行时间显示
-    void offboard_Set_Slot();
-    void field_Size_Confirm_Slot();
+    void setpoints_Confirm_Slot();
     void pump_Status_Slot();
     void timer_Slot();
 
@@ -123,6 +120,8 @@ private slots:
 
 
     void on_dial_Offset_Angle_valueChanged(int value);
+
+    void on_pushButton_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -171,6 +170,9 @@ private:
     /*route offset*/
     float offset_angle_d;
     float offset_dist_m;
+    float measure_compensation_m;
+    float spray_length;
+    float spray_width;
 
     /*item sequence for listwidget*/
     int list_seq;
@@ -190,6 +192,8 @@ private:
 
     bool bool_flying;
 
+    float flying_height;
+    float take_off_height;
 
     int flying_time;
     unsigned int flying_status_counter;

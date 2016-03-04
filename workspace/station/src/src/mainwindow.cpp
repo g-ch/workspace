@@ -10,7 +10,8 @@ extern MavrosMessage message;
 
 int choice=0;//选择显示的图片
 bool send_button_pressed = false;//used in receiver.cpp, changed here
-
+float route_p_send[MAX_POINT_NUM+2][3];//used in receiver.cpp, changed here. (x,y,z)
+int route_p_send_total = 0;//used in receiver.cpp, changed here. number of points to send
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -43,8 +44,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(&message,SIGNAL(optical_Flow_Signal()),this,SLOT(optical_Flow_Slot()));
     QObject::connect(&message,SIGNAL(temperature_Signal()),this,SLOT(temperature_Slot()));
     QObject::connect(&message,SIGNAL(time_Signal()),this,SLOT(time_Slot()));
-    QObject::connect(&message,SIGNAL(offboard_Set_Signal()),this,SLOT(offboard_Set_Slot()));
-    QObject::connect(&message,SIGNAL(field_Size_Confirm_Signal()),this,SLOT(field_Size_Confirm_Slot()));
+    QObject::connect(&message,SIGNAL(setpoints_Confirm_Signal()),this,SLOT(setpoints_Confirm_Slot()));
     QObject::connect(&message,SIGNAL(pump_Status_Signal()),this,SLOT(pump_Status_Slot()));
 
 
@@ -53,6 +53,8 @@ MainWindow::MainWindow(QWidget *parent) :
     //set cout precision
     cout<<fixed;
     cout.precision(8);
+
+    ui->tabWidget->setCurrentIndex(1);
 
     //pitch、roll、yaw绘图仪表初始化
     StatusPainter *painter = new StatusPainter();
@@ -122,6 +124,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton_Route_Reset->setEnabled(false);
     ui->pushButton_Route_Send->setEnabled(false);
     ui->pushButton_Delete_Point->setEnabled(false);
+    ui->pushButton_Restore_Point->setEnabled(false);
     ui->pushButton_OFFBOARD_Imitate->deleteLater();
 
     ui->progressBar_GPS->setRange(0,15);
@@ -135,6 +138,25 @@ MainWindow::MainWindow(QWidget *parent) :
     //offset initialize
     ui->dial_Offset_Angle->setValue(180);
     ui->lineEdit_Offset_Dist->setText(QString::number(0.0));
+
+    //other line edit
+    ui->lineEdit_Flying_Height->setText(QString::number(2.0));
+    ui->lineEdit_Take_Off_Height->setText(QString::number(8.0));
+    ui->lineEdit_Measure_Compensation->setText(QString::number(1.0));
+    ui->lineEdit_Spray_Width->setText(QString::number(3.0));
+    ui->lineEdit_Spray_Length->setText(QString::number(1.6));
+
+    //set limitation
+    ui->lineEdit_Flying_Height->setValidator(new QDoubleValidator(0.0,20.0,2,this));
+    ui->lineEdit_Take_Off_Height->setValidator(new QDoubleValidator(0.0,40.0,2,this));
+    ui->lineEdit_Offset_Dist->setValidator(new QDoubleValidator(0.0,100.0,2,this));
+    ui->lineEdit_Measure_Compensation->setValidator(new QDoubleValidator(-100.0,100.0,2,this));
+    ui->lineEdit_Spray_Width->setValidator(new QDoubleValidator(0.0,10.0,2,this));
+    ui->lineEdit_Spray_Length->setValidator(new QDoubleValidator(0.0,10.0,2,this));
+
+    //set extra function
+    ui->checkBox_Auto_Height->setChecked(false);
+    ui->radioButton_Off_Avoid->setChecked(true);
 }
 
 
@@ -156,6 +178,10 @@ void MainWindow::init_paras()
 
     offset_angle_d = 30.0;
     offset_dist_m = 2.0;
+    measure_compensation_m = 1.0;
+
+    spray_length = 1.6;
+    spray_width = 3.0;
 
     list_seq = 0;
     list_seq_cp1 = 0;
@@ -165,11 +191,14 @@ void MainWindow::init_paras()
     home_lat = 31.027505;
     home_lon = 121.443987;
 
-    dist_between_lines = IDEAL_SPRAY_WIDTH;
+    dist_between_lines = spray_width;
 
     intersection_num = 0;
 
     success_counter = SUCCESS_COUNTER_INIT;
+
+    take_off_height = 8.0;
+    flying_height = 2.0;
 
     controller_flag=0;
     computer_flag=0;
@@ -190,6 +219,7 @@ void MainWindow::init_paras()
     save_counter = 0;
 
     fly_distance = 0;
+
 }
 
 /****显示消息槽****/
@@ -431,37 +461,28 @@ int MainWindow::on_pushButton_Route_Generate_clicked()
 
 void MainWindow::on_pushButton_Route_Send_clicked()
 {
-    //message.field_size.length = field_size_length;
-    //message.field_size.height = field_size_height;
-    //message.field_size.width = field_size_width;
-    //message.field_size.times = field_size_times;
+    //insert 2 take off setpoints
+    route_p_send[0][0] = 0.0; //x
+    route_p_send[0][1] = 0.0; //y
+    route_p_send[0][2] = take_off_height; //h
+    route_p_send[1][0] = route_p_local[0][0]; //x
+    route_p_send[1][1] = route_p_local[0][1]; //y
+    route_p_send[1][2] = take_off_height; //h
+    route_p_send_total = intersection_num + 2;
 
+    //insert route points
+    for(int i=0;i<=intersection_num;i++)
+    {
+       route_p_send[i+2][0] = route_p_local[i][0];
+       route_p_send[i+2][1] = route_p_local[i][1];
+       route_p_send[i+2][2] = flying_height;
+    }
     draw_route(1);
 
-    //send_button_pressed = true;
+    send_button_pressed = true;
     ui->textBrowser_Offboard_Message->append("发送中...");
 
 }
-
-void MainWindow::offboard_Set_Slot()
-{
-    if(success_counter < message.success_counter)
-    {
-        ui->textBrowser_Offboard_Message->append("发送成功!");
-        success_counter = message.success_counter;
-        ui->pushButton_Route_Send->setEnabled(false);
-        ui->pushButton_Route_Reset->setEnabled(true);
-        position_num = 0;//重新开始画实际位置
-    }
-    else
-    {
-        ui->textBrowser_Offboard_Message->append("发送失败，请重试!");
-        success_counter = message.success_counter;
-        ui->pushButton_Route_Send->setEnabled(true);
-        ui->pushButton_Route_Reset->setEnabled(false);
-    }
-}
-
 
 void MainWindow::on_pushButton_Route_Reset_clicked()//重置，使飞机原设定高度悬停
 {
@@ -471,13 +492,14 @@ void MainWindow::on_pushButton_Route_Reset_clicked()//重置，使飞机原设�
     on_pushButton_Route_Send_clicked();
 }
 
-void MainWindow::field_Size_Confirm_Slot()
+void MainWindow::setpoints_Confirm_Slot()
 {
-    //ui->lineEdit_Offboard_Height_R->setText(QString::number(message.field_size_confirm.height));
-    //ui->lineEdit_Offboard_Length_R->setText(QString::number(message.field_size_confirm.length));
-    //ui->lineEdit_Offboard_Width_R->setText(QString::number(message.field_size_confirm.width));
-    //ui->lineEdit_Offboard_Times_R->setText(QString::number(message.field_size_confirm.times));
-    //computer_flag = message.field_size_confirm.confirm;
+    if(message.success_counter > 0 && message.success_counter < 4)
+        ui->textBrowser_Offboard_Message->append(tr("发送中..")+QString::number(message.success_counter)+tr("/")+QString::number(intersection_num+3));
+    else if(message.success_counter >=4 )
+        ui->textBrowser_Offboard_Message->append(tr("可以起飞!")+QString::number(message.success_counter)+tr("/")+QString::number(intersection_num+3));
+    else
+        ui->textBrowser_Offboard_Message->append(tr("发送中断!"));
 }
 
 void MainWindow::on_pushButton_OFFBOARD_Imitate_clicked()
@@ -556,7 +578,7 @@ void MainWindow::draw_gps_fence()
 
 void MainWindow::draw_route(int window)
 {
-    /*calculate scale with local position of fence and home position*/
+     /*calculate scale with local position of fence and home position*/
     float scale = 0.0;
     float min_x = 0.0, max_x = 0.0, min_y = 0.0, max_y = 0.0;
     for(int i =0;i<=gps_num;i++)
@@ -736,6 +758,8 @@ void MainWindow::turn_point_cal()
 {
     //initial
     intersection_num = 0;
+    measure_compensation_m = ui->lineEdit_Measure_Compensation->text().toFloat();
+
 
     //calculate fence local position
     if(gps_fence[0][0]>0){
@@ -779,14 +803,14 @@ void MainWindow::turn_point_cal()
         max_b = (max_b < b_temp) ? b_temp : max_b;
     }
 
-    float delt_b_ideal = fabs(IDEAL_SPRAY_WIDTH / cos_k); //positive
+    float delt_b_ideal = fabs(spray_width / cos_k); //positive
 
-    float b_distance = max_b - min_b;
+    float b_distance = max_b - min_b - measure_compensation_m*2/cos_k;
     float times_f = b_distance / delt_b_ideal;
     float delt_b = 0.0;
     int times = 0;
 
-    if(fabs(b_distance/((int)times_f)-IDEAL_SPRAY_WIDTH) < fabs(b_distance/((int)(times_f+1))-IDEAL_SPRAY_WIDTH))
+    if(fabs(b_distance/((int)times_f)-spray_width) < fabs(b_distance/((int)(times_f+1))-spray_width))
     {
         times = (int)times_f;
         delt_b = b_distance/times;
@@ -801,7 +825,7 @@ void MainWindow::turn_point_cal()
     cout<<"dist_between_lines="<<dist_between_lines<<endl;
 
     /*2.calculate local intersection point*/
-    float b_start = min_b + delt_b/2;
+    float b_start = min_b + delt_b/2 + measure_compensation_m/cos_k;
     for(int i=0;i<times;i++)
     {
         float intersection_temp[20][2]; //set 20 intersection points max for a line
@@ -856,26 +880,16 @@ void MainWindow::turn_point_cal()
     }
     intersection_num -= 1; //correct intersection_num
 
-    /*eliminate the effect from spray length*/
-    /*float e_x = IDEAL_SPRAY_LENTH/2 * cos(angle_k);
-    float e_y = IDEAL_SPRAY_LENTH/2 * sin(angle_k);
+    /*eliminate the effect on the end of line from spray length and measurement error*/
+    float e_x = (spray_length/2 + measure_compensation_m) * cos(angle_k);
+    float e_y = (spray_length/2 + measure_compensation_m) * sin(angle_k);
     for(int i=0;i<= intersection_num;i+=2)
     {
-        if(diraction_k > 0)
-        {
-            intersection_p_local[i][0] += e_x;
-            intersection_p_local[i][1] += e_y;
-            intersection_p_local[i+1][0] -= e_x;
-            intersection_p_local[i+1][1] -= e_y;
-        }
-        else
-        {
-            intersection_p_local[i][0] += e_x;
-            intersection_p_local[i][1] -= e_y;
-            intersection_p_local[i+1][0] -= e_x;
-            intersection_p_local[i+1][1] += e_y;
-        }
-    }*/
+        intersection_p_local[i][0] += e_x;
+        intersection_p_local[i][1] += e_y;
+        intersection_p_local[i+1][0] -= e_x;
+        intersection_p_local[i+1][1] -= e_y;
+    }
 
     /*3.arrange the best route points sequence according to home position*/
     float min_start_dist = 10000.0;
@@ -1188,6 +1202,7 @@ void MainWindow::on_pushButton_Delete_Point_clicked()
 
     delete_point(list_seq);
     ui->listWidget_GPS_Point->takeItem(list_seq);
+    ui->pushButton_Restore_Point->setEnabled(true);
 
     //cout<<gps_fence[2][0]<<endl;
     draw_gps_fence();
@@ -1220,4 +1235,22 @@ void MainWindow::on_dial_Offset_Angle_valueChanged(int value)
 {
     //cout<<"value="<<value<<endl;
     offset_angle_d = (float)(- value + 270);
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    flying_height = ui->lineEdit_Flying_Height->text().toFloat();
+    spray_length = ui->lineEdit_Spray_Length->text().toFloat();
+    spray_width = ui->lineEdit_Spray_Width->text().toFloat();
+
+    if(ui->checkBox_Auto_Height->isChecked()) message.extra_function.laser_height_enable = 1;
+    else message.extra_function.laser_height_enable = 0;
+
+    if(ui->radioButton_Auto_Avoid->isChecked()) message.extra_function.obs_avoid_enable = 2;
+    else if(ui->radioButton_Mannual_Avoid->isChecked()) message.extra_function.obs_avoid_enable = 1;
+    else message.extra_function.obs_avoid_enable = 0;
+
+    message.extra_function.add_one = 0;
+    message.extra_function.add_two = 0;
+    message.extra_function.add_three = 0;
 }
