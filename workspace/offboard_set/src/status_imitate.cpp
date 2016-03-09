@@ -1,39 +1,39 @@
 #include "ros/ros.h"  
 #include "geometry_msgs/PoseStamped.h" 
-#include <mavros/SetPointLocal.h>
+#include <mavros_extras/PositionSetpoint.h>
 #include <mavros/Vector3.h>
 #include "sensor_msgs/Imu.h"
 #include <geometry_msgs/Vector3.h>
-#include <Eigen/Dense>
 #include <sstream>
 #include <math.h>  
 #include <iostream>
 #include <mavros/State.h>
 
-using Eigen::MatrixXd;
 
 geometry_msgs::PoseStamped p;
 geometry_msgs::Vector3 v;
 sensor_msgs::Imu a;
 mavros::State m;
 
-void imitate_p(const mavros::SetPointLocal msg);
-void imitate_v(const mavros::Vector3 msg);
-void imitate_a(const mavros::Vector3 msg);
+int counter = 0;
+
+void imitate_p(const mavros_extras::PositionSetpoint &msg);
+void imitate_v(const mavros::Vector3 &msg);
+void imitate_a(const mavros::Vector3 &msg);
 
 int main(int argc, char **argv)  
 {
 	ros::init(argc, argv, "status_imitate");  
 
     ros::NodeHandle nh;
-    ros::Subscriber p_sub = nh.subscribe("/offboard/setpoints_local", 500, imitate_p);
-    ros::Subscriber v_sub = nh.subscribe("/offboard/velocity_test", 500, imitate_v);
-    ros::Subscriber a_sub = nh.subscribe("/offboard/acceleration_test", 500, imitate_a);
+    ros::Subscriber p_sub = nh.subscribe("/offboard/setpoints_local", 50, imitate_p);
+    ros::Subscriber v_sub = nh.subscribe("/offboard/velocity_test", 50, imitate_v);
+    ros::Subscriber a_sub = nh.subscribe("/offboard/acceleration_test", 50, imitate_a);
 
-    ros::Publisher p_pub = nh.advertise<geometry_msgs::PoseStamped>("offboard/position_imitate", 500);
-    ros::Publisher v_pub = nh.advertise<geometry_msgs::Vector3>("offboard/velocity_imitate",500);
-    ros::Publisher a_pub = nh.advertise<sensor_msgs::Imu>("offboard/acceleration_imitate", 500);
-    ros::Publisher m_pub = nh.advertise<mavros::State>("offboard/mode_imitate", 500);
+    ros::Publisher p_pub = nh.advertise<geometry_msgs::PoseStamped>("offboard/position_imitate", 50);
+    ros::Publisher v_pub = nh.advertise<geometry_msgs::Vector3>("offboard/velocity_imitate",50);
+    ros::Publisher a_pub = nh.advertise<sensor_msgs::Imu>("offboard/acceleration_imitate", 50);
+    ros::Publisher m_pub = nh.advertise<mavros::State>("offboard/mode_imitate", 50);
 
     p.pose.position.x = 1;
     p.pose.position.y = 0;
@@ -45,9 +45,9 @@ int main(int argc, char **argv)
 	a.linear_acceleration.y = 0;
 	a.linear_acceleration.z = 0;
 
-    m.mode = "OFFBOARD";
+    m.mode = "MANUAL";
 
-    ros::Rate loop_rate(20);
+    ros::Rate loop_rate(1);
 
     while(ros::ok())
     {
@@ -56,6 +56,8 @@ int main(int argc, char **argv)
     	a_pub.publish(a);
         m_pub.publish(m);
 
+        counter ++;
+        if(counter > 15) m.mode = "OFFBOARD";
     	ros::spinOnce();  
     	loop_rate.sleep();
     }
@@ -63,19 +65,19 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void imitate_p(const mavros::SetPointLocal msg)
+void imitate_p(const mavros_extras::PositionSetpoint &msg)
 {
-	p.pose.position.x = msg.x;
-	p.pose.position.y = msg.y;
-    p.pose.position.z = msg.z;
+	p.pose.position.x = msg.px;
+	p.pose.position.y = msg.py;
+          p.pose.position.z = msg.ph;
 }
-void imitate_v(const mavros::Vector3 msg)
+void imitate_v(const mavros::Vector3 &msg)
 {
 	v.x = msg.x;
 	v.y = msg.y;
 	v.z = msg.z;
 }
-void imitate_a(const mavros::Vector3 msg)
+void imitate_a(const mavros::Vector3 &msg)
 {
 	a.linear_acceleration.x = msg.x;
 	a.linear_acceleration.y = msg.y;

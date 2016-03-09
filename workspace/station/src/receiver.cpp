@@ -80,12 +80,12 @@ void MavrosMessage::run()
 
     //接收以下话题
     ros::NodeHandle n;
-    ros::Subscriber sub1 = n.subscribe("/mavros/state", 10, chatterCallback_Mode);
+    ros::Subscriber sub1 = n.subscribe("/offboard/mode_imitate", 10, chatterCallback_Mode); // /mavros/state
     ros::Subscriber sub2 = n.subscribe("/mavlink/from", 20, chatterCallback_Mavlink);
     ros::Subscriber sub3 = n.subscribe("/mavros/imu/data", 20, chatterCallback_Imu_Data);
     ros::Subscriber sub4 = n.subscribe("/mavros/global_position/rel_alt", 5,chatterCallback_GlobalPosition_RelAlt);
     ros::Subscriber sub5 = n.subscribe("/mavros/global_position/raw/gps_vel", 10,chatterCallback_GlobalPosition_GpVel);
-    ros::Subscriber sub6 = n.subscribe("/mavros/local_position/local", 20,chatterCallback_LocalPosition_Local);
+    ros::Subscriber sub6 = n.subscribe("/offboard/position_imitate", 20,chatterCallback_LocalPosition_Local); // /mavros/local_position/local
     ros::Subscriber sub7 = n.subscribe("/mavros/wind_estimation",10,chatterCallback_WindEstimation);
     ros::Subscriber sub8 = n.subscribe("/mavros/battery",5,chatterCallback_Battery);
     ros::Subscriber sub9 = n.subscribe("/mavros/radio_status",10,chatterCallback_RadioStatus);
@@ -95,7 +95,7 @@ void MavrosMessage::run()
     ros::Subscriber sub13 = n.subscribe("/mavros/sonar_receiver/sonar_receiver",20,chatterCallback_Sonar);
     ros::Subscriber sub14 = n.subscribe("/mavros/laser_receiver/laser_receiver",20,chatterCallback_Laser);
     ros::Subscriber sub15 = n.subscribe("/mavros/local_position/local_velocity",20,chatterCallback_local_velocity);
-    ros::Subscriber sub16 = n.subscribe("/mavros/offboard_route_points_confirm_receiver/offboard_route_points_confirm_receiver",30,chatterCallback_Setpoints_Confirm);
+    ros::Subscriber sub16 = n.subscribe("/offboard_route_points_confirm",30,chatterCallback_Setpoints_Confirm); // /mavros/offboard_route_points_confirm_receiver/offboard_route_points_confirm_receiver
     ros::Subscriber sub17 = n.subscribe("/mavros/pump_status/pump_status", 200,chatterCallback_Pump_Status);
 
     //Publish Topic

@@ -1,5 +1,7 @@
 //******mainwindow.h*******
 
+//bug: 空中飞行时输入航点画实际轨迹有偏离
+
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
@@ -96,7 +98,6 @@ private slots:
     void on_pushButton_Reset_FlyingTime_clicked();
     void on_pushButton_Route_Send_clicked();
     int on_pushButton_Route_Generate_clicked();
-    void on_pushButton_Route_Reset_clicked();
     void on_pushButton_OFFBOARD_Imitate_clicked();
 
     void on_pushButton_Open_Fence_clicked();

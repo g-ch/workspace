@@ -18,7 +18,7 @@ public:
 
         pump_controller_nh.param<std::string>("frame_id", frame_id, "pump_controller");
         //subcribe the topic and excute the callback function
-        pump_controller_sub = pump_controller_nh.subscribe("/pump_controller",500,&PumpControllerPlugin::pump_controller_send_cb,this);
+        pump_controller_sub = pump_controller_nh.subscribe("/pump_controller",2,&PumpControllerPlugin::pump_controller_send_cb,this);
 
     }
 

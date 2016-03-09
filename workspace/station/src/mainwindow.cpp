@@ -125,7 +125,6 @@ MainWindow::MainWindow(QWidget *parent) :
 
     //设置是否可用
     ui->pushButton_Route_Generate->setEnabled(true);
-    ui->pushButton_Route_Reset->setEnabled(false);
     ui->pushButton_Route_Send->setEnabled(false);
     ui->pushButton_Delete_Point->setEnabled(false);
     ui->pushButton_Restore_Point->setEnabled(false);
@@ -332,7 +331,7 @@ void MainWindow::local_Position_Slot()
 
     //local_position画当前位置图
     save_counter++;
-    if(message.mode=="自动喷洒" && save_counter%5==1) //draw every 5 points
+    //if(message.mode=="自动喷洒" && save_counter==5) //draw every 5 points
     {
          //translate coordinate
          real_position[position_num][1]= message.local_position.position.x; //N: x->y
@@ -538,13 +537,6 @@ void MainWindow::on_pushButton_Route_Send_clicked()
     }
 }
 
-void MainWindow::on_pushButton_Route_Reset_clicked()//重置，使飞机原设定高度悬停
-{
-    //field_size_length = 0;
-    //field_size_width = 0;
-    //field_size_times = 0;
-    on_pushButton_Route_Send_clicked();
-}
 
 void MainWindow::setpoints_Confirm_Slot()
 {
@@ -699,9 +691,9 @@ void MainWindow::draw_route(int window)
     else
     {
         painter.setPen(QPen(Qt::red,3));
-        painter.translate(home_local_x,home_local_y);
+        //painter.translate(home_local_x,home_local_y);
 
-        if(position_num == 0) painter.drawLine(0.0,0.0,1.0,1.0);
+        if(position_num == 0) painter.drawLine(0.0,0.0,10.0,10.0);
         else
         {
             for(int n=0;n<position_num;n++)
@@ -710,7 +702,7 @@ void MainWindow::draw_route(int window)
                       (real_position[n+1][0]-real_position[0][0])/scale,-(real_position[n+1][1]-real_position[0][1])/scale);
             }
         }
-        painter.translate(-home_local_x,-home_local_y);
+        //painter.translate(-home_local_x,-home_local_y);
         painter.end();
         fly_position_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
     }

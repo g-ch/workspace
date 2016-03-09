@@ -19,7 +19,7 @@ public:
 
         // general params
         pump_status_nh.param<std::string>("frame_id", frame_id, "pump_status");
-        pump_status_pub = pump_status_nh.advertise<mavros_extras::PumpStatus>("pump_status", 1000); //add publisher to handler
+        pump_status_pub = pump_status_nh.advertise<mavros_extras::PumpStatus>("pump_status", 2); //add publisher to handler
     }
 
     const message_map get_rx_handlers() {
