@@ -25,6 +25,7 @@
 #include <QBitmap>
 #include <QPainter>
 #include <QMessageBox>
+#include <QDir>
 
 #define FLY_POSITION_LABEL_WIDTH 720
 #define FLY_POSITION_LABEL_HEIGHT 540
@@ -121,10 +122,17 @@ private slots:
 
     void turn_point_cal();
 
+    int record_break_point();
 
     void on_dial_Offset_Angle_valueChanged(int value);
 
     void on_pushButton_clicked();
+
+    int on_pushButton_Open_Break_Point_clicked();
+
+    void break_point_cal();
+
+    void on_pushButton_Break_Paras_Update_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -146,10 +154,11 @@ private:
     double gps_fence_cp1[MAX_POINT_NUM][3];
     double gps_fence_cp2[MAX_POINT_NUM][3];
     double gps_fence_cp3[MAX_POINT_NUM][3];
+
     int gps_num;//start from 0
     int gps_num_cp1;
     int gps_num_cp2;
-    int gps_num_cp3;
+    int gps_num_cp3;   
     float gps_fence_local[MAX_POINT_NUM][2]; //local: East->x, North->y
 
     /*diraction*/
@@ -168,8 +177,26 @@ private:
     float intersection_p_local[MAX_POINT_NUM][2];
     float route_p_local[MAX_POINT_NUM][2];//local: East->x, North->y
     double route_p_gps[MAX_POINT_NUM][2];
+
     int intersection_num;
 
+
+    /*for break point*/
+    bool break_point_flag1;
+    bool break_point_flag2;
+    int intersection_num_last;
+    double route_p_gps_last[MAX_POINT_NUM][2];
+    int gps_num_last;
+    double gps_fence_last[MAX_POINT_NUM][3];
+    double break_point_lat;
+    double break_point_lon;
+    int break_position_num;
+    double route_p_gps_read[MAX_POINT_NUM][2];
+    float route_p_local_read[MAX_POINT_NUM][2];
+    int route_p_num_read;
+    double break_point_lat_read;
+    double break_point_lon_read;
+    int break_point_seq_read;
 
 
     /*route offset*/
@@ -204,9 +231,10 @@ private:
 
     int time_counter;
 
+
     //以下变量用于画路径图
     float paint_scale ;
-    float real_position[3600][2];
+    float real_position[6000][2];
     int position_num;
     int save_counter;
 

@@ -5,7 +5,7 @@
 #include "mavros/State.h"
 #include "mavros_extras/ExtraFunctionReceiver.h"
 
-#define Pi 3.1415926
+#define Pi 3.14159265
 
 mavros_extras::PositionSetpoint processed_setpoint;
 

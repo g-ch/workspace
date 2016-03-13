@@ -9,6 +9,7 @@
 extern MavrosMessage message;
 
 bool test_mode = true;
+bool imitate_mode = true;
 
 int choice=0;//选择显示的图片
 int computer_flag = 0;//used in receiver.cpp, changed here
@@ -128,6 +129,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->pushButton_Route_Send->setEnabled(false);
     ui->pushButton_Delete_Point->setEnabled(false);
     ui->pushButton_Restore_Point->setEnabled(false);
+    ui->pushButton_Break_Paras_Update->setEnabled(false);
     ui->pushButton_OFFBOARD_Imitate->deleteLater();
 
     ui->progressBar_GPS->setRange(0,15);
@@ -143,8 +145,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->lineEdit_Offset_Dist->setText(QString::number(0.0));
 
     //other line edit
-    ui->lineEdit_Flying_Height->setText(QString::number(2.0));
-    ui->lineEdit_Take_Off_Height->setText(QString::number(8.0));
+    ui->lineEdit_Flying_Height->setText(QString::number(flying_height));
+    ui->lineEdit_Take_Off_Height->setText(QString::number(take_off_height));
     ui->lineEdit_Measure_Compensation->setText(QString::number(1.0));
     ui->lineEdit_Spray_Width->setText(QString::number(3.0));
     ui->lineEdit_Spray_Length->setText(QString::number(1.6));
@@ -160,6 +162,8 @@ MainWindow::MainWindow(QWidget *parent) :
     //set extra function
     ui->checkBox_Auto_Height->setChecked(false);
     ui->radioButton_Off_Avoid->setChecked(true);
+
+
 }
 
 
@@ -184,7 +188,7 @@ void MainWindow::init_paras()
     measure_compensation_m = 1.0;
 
     spray_length = 1.6;
-    spray_width = 3.0;
+    spray_width = 2.0;
 
     list_seq = 0;
     list_seq_cp1 = 0;
@@ -199,6 +203,9 @@ void MainWindow::init_paras()
     else{
         home_lat = 31.027424;
         home_lon = 121.444330;
+        break_point_lat = 31.027428;
+        break_point_lon = 121.444350;
+        break_position_num = 4;
     }
 
 
@@ -208,8 +215,8 @@ void MainWindow::init_paras()
 
     success_counter = SUCCESS_COUNTER_INIT;
 
-    take_off_height = 8.0;
-    flying_height = 2.0;
+    take_off_height = 4.0;
+    flying_height = 4.0;
 
     controller_flag=0;
     controller_flag_last=0;
@@ -217,6 +224,9 @@ void MainWindow::init_paras()
     orientation_last=0;
 
     bool_flying=false;
+
+    break_point_flag1 = false;
+    break_point_flag2 = false;
 
     flying_time=0;
     flying_status_counter=0;
@@ -245,6 +255,7 @@ void MainWindow::init_paras()
 
     gps_diraction[0][0] = 0.0;
     gps_fence[0][0] = 0.0;
+
 }
 
 /****显示消息槽****/
@@ -253,6 +264,19 @@ void MainWindow::state_Mode_Slot()
     ui->label_Mode->setText(QString::fromStdString(message.mode));
     if(controller_flag!=10000)controller_flag+=1;
     else controller_flag=1;
+
+    if(message.mode=="自动喷洒")
+    {
+        break_point_flag1 = true;
+        break_point_flag2 = false;
+    }
+    else break_point_flag2 = true;
+
+    if(break_point_flag1 && break_point_flag2)
+    {
+        record_break_point();
+        break_point_flag1 = false;
+    }
 }
 
 void MainWindow::battey_Slot()
@@ -331,11 +355,12 @@ void MainWindow::local_Position_Slot()
 
     //local_position画当前位置图
     save_counter++;
-    //if(message.mode=="自动喷洒" && save_counter==5) //draw every 5 points
+    if(save_counter>=2) //draw every 5 points //message.mode=="自动喷洒" &&
     {
          //translate coordinate
          real_position[position_num][1]= message.local_position.position.x; //N: x->y
          real_position[position_num][0]= -message.local_position.position.y; //W->E: y->x
+         cout<<"real_position[position_num][0]"<<real_position[position_num][0]<<endl;
 
          draw_route(2); //draw
 
@@ -347,7 +372,7 @@ void MainWindow::local_Position_Slot()
          if(position_num>0)
          {
              fly_distance += point_dist(real_position[position_num][0],real_position[position_num][1],real_position[position_num+1][0],real_position[position_num+1][1]);
-             ui->lineEdit_Total_Distance->setText(QString::number(fly_distance));
+             ui->lineEdit_Total_Distance->setText(QString::number(fly_distance));            
          }
     }
     if(message.mode!="自动喷洒")
@@ -404,9 +429,13 @@ void MainWindow::time_Update()
         ui->label_Flying_Time->setText(flying_time_temp);
     }
     time_counter ++;
-    if(time_counter >= 3)
+    if(time_counter % 3 ==1)
     {
         timer_Slot();
+    }
+    if(time_counter % 5 ==1 && !test_mode)
+    {
+        home_lat = 0; //GPS connection lost
         time_counter = 0;
     }
 
@@ -444,6 +473,7 @@ void MainWindow::on_pushButton_Reset_FlyingTime_clicked()
 
 int MainWindow::on_pushButton_Route_Generate_clicked()
 {
+
     //record home gps position
     if(!test_mode) record_home_gps();
 
@@ -483,6 +513,8 @@ int MainWindow::on_pushButton_Route_Generate_clicked()
             else  //all correct
             {
                 offset_dist_m = ui->lineEdit_Offset_Dist->text().toFloat();
+                int value = ui->dial_Offset_Angle->value();
+                offset_angle_d = (float)(- value + 270);
                 turn_point_cal(); //calculate
             }
 
@@ -510,9 +542,18 @@ void MainWindow::on_pushButton_Route_Send_clicked()
     {
         QMessageBox message_box(QMessageBox::Warning,"警告","自动喷洒中，无法发送，请先切换到手动！", QMessageBox::Cancel, NULL);
         message_box.exec();
+        if(test_mode)record_break_point(); //for test
     }
     else
     {
+        /*only points which have been sent to UAV can be used as break point record*/
+        memcpy(gps_fence_last,gps_fence,24000);
+        memcpy(route_p_gps_last,route_p_gps,16000);
+
+        gps_num_last = gps_num;//store here for break point
+        intersection_num_last = intersection_num;//store here for break point
+
+        if(test_mode)record_break_point(); //for test
         //insert 2 take off setpoints
         route_p_send[0][0] = 0.0; //x
         route_p_send[0][1] = 0.0; //y
@@ -529,11 +570,21 @@ void MainWindow::on_pushButton_Route_Send_clicked()
            route_p_send[i+2][0] = route_p_local[i][0];
            route_p_send[i+2][1] = route_p_local[i][1];
            route_p_send[i+2][2] = flying_height;
+           cout<<i<<" "<<route_p_send[i+2][0]<<endl;
+        }
+        //turn to even number to correct a bug, start from 0
+        if(route_p_send_total % 2 == 0)
+        {
+            route_p_send_total += 1;
+            route_p_send[route_p_send_total][0] = route_p_local[intersection_num][0];
+            route_p_send[route_p_send_total][1] = route_p_local[intersection_num][1];
+            route_p_send[route_p_send_total][2] = flying_height;
         }
         draw_route(1);
 
         send_button_pressed = true;
         ui->textBrowser_Offboard_Message->append("发送中...");
+
     }
 }
 
@@ -541,9 +592,9 @@ void MainWindow::on_pushButton_Route_Send_clicked()
 void MainWindow::setpoints_Confirm_Slot()
 {
     if(message.success_counter > 0 && message.success_counter < 4)
-        ui->textBrowser_Offboard_Message->append(tr("发送中..")+QString::number(message.success_counter)+tr("/")+QString::number(intersection_num+3));
+        ui->textBrowser_Offboard_Message->append(tr("发送中..")+QString::number(message.success_counter)+tr("/")+QString::number(route_p_send_total+1));
     else if(message.success_counter >=4 )
-        ui->textBrowser_Offboard_Message->append(tr("可以起飞!")+QString::number(message.success_counter)+tr("/")+QString::number(intersection_num+3));
+        ui->textBrowser_Offboard_Message->append(tr("可以起飞!")+QString::number(message.success_counter)+tr("/")+QString::number(route_p_send_total+1));
     else
         ui->textBrowser_Offboard_Message->append(tr("发送中断!"));
 }
@@ -688,24 +739,26 @@ void MainWindow::draw_route(int window)
         painter.end();
         fly_position_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
     }
-    else
+    else if(window==2)
     {
         painter.setPen(QPen(Qt::red,3));
-        //painter.translate(home_local_x,home_local_y);
+        painter.save();
+        painter.translate(home_local_x,home_local_y);
 
-        if(position_num == 0) painter.drawLine(0.0,0.0,10.0,10.0);
+        if(position_num == 0) painter.drawLine(0.0,0.0,0.1,0.1);
         else
         {
             for(int n=0;n<position_num;n++)
             {
-                 painter.drawLine((real_position[n][0]-real_position[0][0])/scale,-(real_position[n][1]-real_position[0][1])/scale,
-                      (real_position[n+1][0]-real_position[0][0])/scale,-(real_position[n+1][1]-real_position[0][1])/scale);
+                 painter.drawLine((real_position[n][0]-real_position[0][0])*scale,-(real_position[n][1]-real_position[0][1])*scale,
+                      (real_position[n+1][0]-real_position[0][0])*scale,-(real_position[n+1][1]-real_position[0][1])*scale);
             }
         }
-        //painter.translate(-home_local_x,-home_local_y);
+        painter.restore();
         painter.end();
         fly_position_label->setPixmap(QPixmap::fromImage(image));//在label上显示图片
     }
+    else ;
 }
 
 void MainWindow::delete_point(int x) //x start with 0
@@ -796,15 +849,24 @@ void MainWindow::local_to_gps(float x, float y, double *lat, double *lon)
     double home_lat_rad = home_lat * DEG_TO_RAD;
     double home_lon_rad = home_lon * DEG_TO_RAD;
 
-    *lat = (((double)x) / CONSTANTS_RADIUS_OF_EARTH + home_lat_rad) * RAD_TO_DEG;
-    *lon = (home_lon_rad - ((double)y) / (CONSTANTS_RADIUS_OF_EARTH * cos(x/2.0/CONSTANTS_RADIUS_OF_EARTH + home_lat_rad))) * RAD_TO_DEG;
+    double lat_rad = ((double)y) / CONSTANTS_RADIUS_OF_EARTH + home_lat_rad;
+    double lon_rad = ((double)x)/(CONSTANTS_RADIUS_OF_EARTH*cos((lat_rad+home_lat_rad)/2.0))+home_lon_rad;
+
+    *lat = lat_rad * RAD_TO_DEG;
+    *lon = lon_rad * RAD_TO_DEG;
 }
 
 void MainWindow::turn_point_cal()
 {
-    //initial
+    //initialize
     intersection_num = 0;
     measure_compensation_m = ui->lineEdit_Measure_Compensation->text().toFloat();
+
+    for(int i=0;i<MAX_POINT_NUM;i++)
+    {
+        route_p_local[i][0] = 0;
+        route_p_local[i][1] = 0;
+    }
 
     //calculate diraction k with the first and the last point
     float first_px = 0.0;
@@ -822,8 +884,8 @@ void MainWindow::turn_point_cal()
         for(int i=0;i<=gps_num;i++)
         {
             gps_to_local(gps_fence[i][0],gps_fence[i][1],&gps_fence_local[i][0],&gps_fence_local[i][1]);
-            //cout<<gps_fence_local[i][0]<<" + "<<gps_fence_local[i][1]<<endl;
         }
+        //cout<<gps_fence_local[0][0]<<" + "<<gps_fence_local[0][1]<<endl;
     }
     //calculate lines, form: y=kx+b
     float line_paras[gps_num+1][4]; //(k,b,x1,x2), para[0] is for the line between Point0 and Point1
@@ -1046,6 +1108,21 @@ void MainWindow::turn_point_cal()
         default: break;
     }
 
+    /*4.translate to global coordnate, for flying back to break point, without wind effect*/
+    for(int n=0;n<=intersection_num;n++)
+    {
+        local_to_gps(route_p_local[n][0],route_p_local[n][1],&route_p_gps[n][0],&route_p_gps[n][1]);
+    }
+
+    cout<<"route_p_local[0][0]"<<route_p_local[0][0]<<endl;
+    cout<<"route_p_local[0][1]"<<route_p_local[0][1]<<endl;
+    cout<<"route_p_local[1][0]"<<route_p_local[1][0]<<endl;
+    cout<<"route_p_local[1][1]"<<route_p_local[1][1]<<endl;
+    /*float local_tx;
+    float local_ty;
+    gps_to_local(route_p_gps[0][0],route_p_gps[0][1],&local_tx,&local_ty);
+    cout<<"local-gps-local"<<local_tx<<"  "<<local_tx<<endl;*/
+
     /*offset to eliminate the effect from wind*/
     if(offset_dist_m != 0){
         float offset_x = offset_dist_m * cos(offset_angle_d*DEG_TO_RAD);
@@ -1060,13 +1137,7 @@ void MainWindow::turn_point_cal()
     /*calculate yaw*/
     float yaw_local = atan2(route_p_local[1][1]-route_p_local[0][1], route_p_local[1][0]-route_p_local[0][0]); //E is 0, N is Pi/2
     yaw_set = -yaw_local + PI_2; //turn to: N is 0, E is Pi/2
-    cout<<"yaw_set="<<yaw_set<<endl;
-
-    /*4.translate to global coordnate, for flying back to break point*/
-    for(int y=0;y<=intersection_num;y++)
-    {
-        local_to_gps(route_p_local[y][0],route_p_local[y][1],&route_p_gps[y][0],&route_p_gps[y][1]);
-    }
+    cout<<"yaw_set="<<yaw_set<<endl; 
 
     //draw
     draw_route(0);
@@ -1265,7 +1336,6 @@ void MainWindow::on_pushButton_Delete_Point_clicked()
     ui->listWidget_GPS_Point->takeItem(list_seq);
     ui->pushButton_Restore_Point->setEnabled(true);
 
-    //cout<<gps_fence[2][0]<<endl;
     draw_gps_fence();
 }
 
@@ -1295,7 +1365,7 @@ void MainWindow::on_listWidget_GPS_Point_itemClicked()
 void MainWindow::on_dial_Offset_Angle_valueChanged(int value)
 {
     //cout<<"value="<<value<<endl;
-    offset_angle_d = (float)(- value + 270);
+
 }
 
 void MainWindow::on_pushButton_clicked()
@@ -1318,3 +1388,365 @@ void MainWindow::record_home_gps()
     home_lat = message.global_position.gps.x;
     home_lon = message.global_position.gps.y;
 }
+
+int MainWindow::record_break_point()
+{
+    if(!test_mode)
+    {
+        break_point_lat = message.global_position.gps.x;
+        break_point_lon = message.global_position.gps.y;
+        break_position_num = message.setpoints_receive.seq;
+    }
+    if(imitate_mode)
+    {
+        break_position_num = message.setpoints_receive.seq;
+        cout<<"break_position_num"<<break_position_num<<endl;
+    }
+    char name[17] = "/break_point.txt";
+    char path[80]="/home/chg/catkin_ws/src/break_point";
+
+    QDir *temp = new QDir;
+    bool exist = temp->exists(QString(path));
+    if(!exist)temp->mkdir(QString(path));
+
+    strcat(path,name);
+    cout<<"file saved in "<<path<<endl;
+    FILE *pTxtFile = NULL;
+
+    pTxtFile = fopen(path, "w+");
+    if (pTxtFile == NULL)
+    {
+        printf("The program exist!\n");
+        return 0;
+    }
+
+    cout<<"writing...\n";
+
+    float bseq = (float)break_position_num - 2;
+    if(bseq < 0) bseq = 0;
+    fprintf(pTxtFile,"blat=#%.8lf# blon=#%.8lf#\n",break_point_lat,break_point_lon);
+    fprintf(pTxtFile,"bseq=#%f#\n",bseq);
+    fprintf(pTxtFile,"heit=#%f#\n",flying_height);
+    fprintf(pTxtFile,"angl=#%f#\n",offset_angle_d);
+    fprintf(pTxtFile,"dist=#%f#\n",offset_dist_m);
+    fprintf(pTxtFile,"yaws=#%f#\n",yaw_set);
+
+    for(int i=0;i<=gps_num_last;i++)
+    {
+        fprintf(pTxtFile,"flat=#%.8lf# flon=#%.8lf# fseq=#%lf#\n",gps_fence_last[i][0],gps_fence_last[i][1],gps_fence_last[i][2]);
+    }
+
+    for(int i=0;i<=intersection_num_last;i++)
+    {
+        fprintf(pTxtFile,"rlat=#%.8lf# rlon=#%.8lf#\n",route_p_gps_last[i][0],route_p_gps_last[i][1]);
+    }
+
+    fprintf(pTxtFile,"end");
+
+    fclose(pTxtFile);
+    return 1;
+}
+
+int MainWindow::on_pushButton_Open_Break_Point_clicked()
+{
+    for(int i=0;i<MAX_POINT_NUM;i++)
+    {
+        route_p_local[i][0] = 0;
+        route_p_local[i][1] = 0;
+    }
+
+    char dir_path[80]="/home/chg/catkin_ws/src/break_point";
+    QDir *temp = new QDir;
+    bool exist = temp->exists(QString(dir_path));
+    if(!exist)
+    {
+        QMessageBox message_box(QMessageBox::Warning,"警告","尚未有任何断点文件!", QMessageBox::Cancel, NULL);
+        message_box.exec();
+        return 0;
+    }
+
+    if(home_lat == 0 && !test_mode)
+    {
+        QMessageBox message_box(QMessageBox::Warning,"警告","未连接到飞机或无GPS信号", QMessageBox::Cancel, NULL);
+        message_box.exec();
+        return 0;
+    }
+
+    QString fileName = "/home/chg/catkin_ws/src/break_point/break_point.txt";
+
+    //initial
+    gps_num = 0;
+    gps_num_cp1 = 0;
+    gps_num_cp2 = 0;
+    gps_num_cp3 = 0;
+
+    route_p_num_read = 0;
+
+    ui->listWidget_GPS_Point->clear(); //clear item
+    fstream break_f;
+    char *path = fileName.toLatin1().data();
+    break_f.open(path,ios::in);
+
+    gps_num = 0; //initialize
+    double fnum=0.0;
+    while(!break_f.eof()){   //while not the end of file
+        char str[300];
+        break_f >> str;
+        //cout<<endl<<str;
+        fnum=0.0;
+        if(str[0]=='f'&&str[1]=='l'&&str[2]=='a'&&str[3]=='t') //fence lattitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            gps_fence[gps_num][0]=fnum;//save
+        }
+
+        else if(str[0]=='f'&&str[1]=='l'&&str[2]=='o'&&str[3]=='n') //fence longitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            gps_fence[gps_num][1]=fnum;//save
+            gps_fence[gps_num][2]=gps_num;
+            gps_num++;//counter for next point
+        }
+
+        else if(str[0]=='r'&&str[1]=='l'&&str[2]=='a'&&str[3]=='t') //route lattitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            route_p_gps_read[route_p_num_read][0]=fnum;//save
+            //cout<<"rlat "<<fnum<<endl;
+        }
+
+        else if(str[0]=='r'&&str[1]=='l'&&str[2]=='o'&&str[3]=='n') //route longitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            route_p_gps_read[route_p_num_read][1]=fnum;//save
+            route_p_num_read++;//counter for next point
+        }
+
+        else if(str[0]=='b'&&str[1]=='l'&&str[2]=='a'&&str[3]=='t') //break point lattitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            break_point_lat_read=fnum;//save
+        }
+
+        else if(str[0]=='b'&&str[1]=='l'&&str[2]=='o'&&str[3]=='n') //break point longitude
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            break_point_lon_read=fnum;//save
+        }
+
+        else if(str[0]=='b'&&str[1]=='s'&&str[2]=='e'&&str[3]=='q') //break point seq
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            break_point_seq_read=(int)fnum;//save
+        }
+
+        else if(str[0]=='h'&&str[1]=='e'&&str[2]=='i'&&str[3]=='t') //flying height
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            flying_height=fnum;//save
+            ui->lineEdit_Flying_Height->setText(QString::number(flying_height));
+            ui->lineEdit_Flying_Height_2->setText(QString::number(flying_height));
+        }
+
+        else if(str[0]=='a'&&str[1]=='n'&&str[2]=='g'&&str[3]=='l') //wind angle
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            offset_angle_d=fnum;//save
+            ui->dial_Offset_Angle_2->setValue((int)(270-offset_angle_d));
+        }
+
+        else if(str[0]=='d'&&str[1]=='i'&&str[2]=='s'&&str[3]=='t') //wind dist
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            offset_dist_m=fnum;//save
+            ui->lineEdit_Offset_Dist_2->setText(QString::number(offset_dist_m));
+        }
+
+        else if(str[0]=='y'&&str[1]=='a'&&str[2]=='w'&&str[3]=='s') //yaw set
+        {
+            int point_p=8;
+
+            for(int i=6;str[i]!='#';i++) //find '.' first
+                if(str[i]=='.') point_p=i;
+
+            for(int m=point_p-1;str[m]!='#';m--) //integer
+                fnum += (double)(str[m]-'0')*pow(10,(point_p-1-m));
+
+            for(int n=point_p+1;str[n]!='#';n++) //fractional
+                fnum += ((double)(str[n]-'0'))/pow(10,(n-point_p));
+            yaw_set=fnum;//save
+
+        }
+        else ;
+
+        //cout<<"fnum"<<fnum<<endl;
+
+    }
+
+    gps_num -= 1; //correct num
+    route_p_num_read -= 1;
+    cout<<"gps_num"<<gps_num<<endl;
+    cout<<"route_p_num_read"<<route_p_num_read<<endl;
+    break_f.close(); //reading finished
+
+    ui->pushButton_Break_Paras_Update->setEnabled(true);
+
+    break_point_cal();
+
+    return 1;
+}
+
+void MainWindow::break_point_cal()
+{
+    //record home gps position
+    if(!test_mode) record_home_gps();
+
+    /*calculate fence local position*/
+    for(int i=0;i<=gps_num;i++)
+    {
+        gps_to_local(gps_fence[i][0],gps_fence[i][1],&gps_fence_local[i][0],&gps_fence_local[i][1]);     
+    }
+    //cout<<gps_fence_local[0][0]<<" + "<<gps_fence_local[0][1]<<endl;
+    /*calculate route point local position*/
+    for(int i=0;i<=route_p_num_read;i++)
+    {
+        //cout<<"homelat "<<home_lat<<endl;
+        gps_to_local(route_p_gps_read[i][0],route_p_gps_read[i][1],&route_p_local_read[i][0],&route_p_local_read[i][1]);
+    }
+    cout<<"route_p_local_read[0][0]"<<route_p_local_read[0][0]<<endl;
+
+
+    /*set route_p_local from break point and the first unfinished point*/
+    gps_to_local(break_point_lat_read,break_point_lon_read,&route_p_local[0][0],&route_p_local[0][1]);
+    for(int i=0;i<=route_p_num_read;i++)
+    {
+        route_p_local[i+1][0] = route_p_local_read[i+break_point_seq_read][0];
+        route_p_local[i+1][1] = route_p_local_read[i+break_point_seq_read][1];
+    }
+    intersection_num = route_p_num_read + 1 - break_point_seq_read;
+
+    /*translate to global coordnate, for flying back to break point, without wind effect*/
+    for(int n=0;n<=intersection_num;n++)
+    {
+        local_to_gps(route_p_local[n][0],route_p_local[n][1],&route_p_gps[n][0],&route_p_gps[n][1]);
+    }
+
+    /*offset to eliminate the effect from wind*/
+    float offset_x = offset_dist_m * cos(offset_angle_d*DEG_TO_RAD);
+    float offset_y = offset_dist_m * sin(offset_angle_d*DEG_TO_RAD);
+
+    cout<<"break_point_seq_read"<<break_point_seq_read<<endl;
+    for(int i=0;i<=intersection_num;i++)
+    {
+        route_p_local[i][0] += offset_x;
+        route_p_local[i][1] += offset_y;
+    }
+
+    cout<<"route_p_local[0][0]"<<route_p_local[0][0]<<endl;
+    cout<<"route_p_local[0][1]"<<route_p_local[0][1]<<endl;
+    cout<<"route_p_local[1][0]"<<route_p_local[1][0]<<endl;
+    cout<<"route_p_local[1][1]"<<route_p_local[1][1]<<endl;
+
+    ui->pushButton_Route_Send->setEnabled(true);
+    draw_route(0);
+}
+
+void MainWindow::on_pushButton_Break_Paras_Update_clicked()
+{
+    offset_dist_m = ui->lineEdit_Offset_Dist_2->text().toFloat();
+    int value = ui->dial_Offset_Angle_2->value();
+    offset_angle_d = (float)(- value + 270);
+    break_point_cal();
+}
+
+

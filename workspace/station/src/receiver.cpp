@@ -31,6 +31,8 @@
 #include <ros/console.h>
 #include <iostream>
 
+using namespace std;
+
 extern MavrosMessage message;
 extern bool send_button_pressed;
 extern float route_p_send[MAX_POINT_NUM+2][3];// (x,y,z)
@@ -110,14 +112,14 @@ void MavrosMessage::run()
         //other sendings
         pump_msg.pump_speed_sp = message.pump.pump_speed_sp;
         pump_msg.spray_speed_sp = message.pump.spray_speed_sp;
-        pump_controller_pub.publish(pump_msg);
+        //pump_controller_pub.publish(pump_msg);
 
         extra_msg.laser_height_enable = message.extra_function.laser_height_enable;
         extra_msg.obs_avoid_enable = message.extra_function.obs_avoid_enable;
         extra_msg.add_one = message.extra_function.add_one;
         extra_msg.add_two = message.extra_function.add_two;
         extra_msg.add_three = message.extra_function.add_three;
-        extra_function_pub.publish(extra_msg);
+        //extra_function_pub.publish(extra_msg);
         //cout<<pump_msg.spray_speed_sp<<endl;
 
         //set field values
@@ -143,14 +145,14 @@ void MavrosMessage::run()
                   {
                       pump_msg.pump_speed_sp = message.pump.pump_speed_sp;
                       pump_msg.spray_speed_sp = message.pump.spray_speed_sp;
-                      pump_controller_pub.publish(pump_msg);
+                      //pump_controller_pub.publish(pump_msg);
 
                       extra_msg.laser_height_enable = message.extra_function.laser_height_enable;
                       extra_msg.obs_avoid_enable = message.extra_function.obs_avoid_enable;
                       extra_msg.add_one = message.extra_function.add_one;
                       extra_msg.add_two = message.extra_function.add_two;
                       extra_msg.add_three = message.extra_function.add_three;
-                      extra_function_pub.publish(extra_msg);
+                      //extra_function_pub.publish(extra_msg);
 
                       other_sending_counter = 0;
                   }
@@ -165,19 +167,19 @@ void MavrosMessage::run()
                   route_points_msg.yaw = yaw_set;
                   route_points_msg.seq = transmitted_num;
                   route_points_msg.total = route_p_send_total;
-
+                  cout<<"route_p_send[transmitted_num+1][0]"<<route_p_send[transmitted_num+1][0]<<endl;
                   offboard_setpoint_pub.publish(route_points_msg);
 
                   counter ++;
                   if(f_equal(message.setpoints_receive.px_1,route_points_msg.px_1) && f_equal(message.setpoints_receive.py_1,route_points_msg.py_1)
                           && f_equal(message.setpoints_receive.ph_1,route_points_msg.ph_1) && f_equal(message.setpoints_receive.px_2,route_points_msg.px_2)
-                          && f_equal(message.setpoints_receive.py_2,route_points_msg.py_2) && f_equal(message.setpoints_receive.ph_2,route_points_msg.ph_2)
-                          && f_equal(message.setpoints_receive.seq,route_points_msg.seq) && (message.setpoints_receive.seq == route_points_msg.seq))
+                          && f_equal(message.setpoints_receive.py_2,route_points_msg.py_2) && f_equal(message.setpoints_receive.ph_2,route_points_msg.ph_2))
                   {
                       //send successfully
                       transmitted_num += 2;
                       message.success_counter += 2;
                       break;
+
                   }
 
                   else if(counter > 100) //send failed
@@ -359,7 +361,7 @@ void chatterCallback_Setpoints_Confirm(const mavros_extras::OffboardRoutePointsC
 
     computer_flag = 1;
 
-    //cout<<"message.setpoints="<<message.setpoints_receive.px_1<<endl;
+    cout<<"seq="<<message.setpoints_receive.seq<<endl;
 
     //message.msg_Send_Setpoints_Confirm();
 }
